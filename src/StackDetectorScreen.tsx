@@ -22,7 +22,7 @@ import { CreateLobbyScreen } from './CreateLobbyScreen';
 import { GenerateLobbyCodeScreen } from './GenerateLobbyCodeScreen';
 
 const LOBBY_SERVER_URL = getLobbyServerUrl();
-export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, userId }: { onOpenHistory?: () => void; onOpenBill?: () => void; onGameStarted?: (roomCode: string, displayName: string) => void; userId?: string }) {
+export function StackDetectorScreen({ onOpenHistory, onOpenBill, onOpenDemo, onGameStarted, userId }: { onOpenHistory?: () => void; onOpenBill?: () => void; onOpenDemo?: () => void; onGameStarted?: (roomCode: string, displayName: string) => void; userId?: string }) {
   const [codeInput, setCodeInput] = useState('');
   const [pendingRoomCode, setPendingRoomCode] = useState<string | null>(null);
   const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
@@ -134,7 +134,7 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
   }
 
   if (!activeRoomCode) {
-    return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={handleBeginCreate} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} />;
+    return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={handleBeginCreate} onDemo={() => onOpenDemo?.()} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} />;
   }
 
   return <SafeAreaView style={[styles.safeArea, isBrowserSimulator && styles.webCanvas]}><StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" /><ScrollView style={styles.scroll} contentContainerStyle={[styles.container, isBrowserSimulator && styles.phoneFrame]} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

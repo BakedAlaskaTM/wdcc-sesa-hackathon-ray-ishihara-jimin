@@ -7,11 +7,12 @@ type Props = {
   onChangeCode: (value: string) => void;
   onCreate: () => void;
   onJoin: () => void;
+  onDemo: () => void;
   onOpenHistory?: () => void;
 };
 
 /** Native implementation of the supplied lobby-app mockup. */
-export function CreateLobbyScreen({ code, error, isLoading, onChangeCode, onCreate, onJoin, onOpenHistory }: Props) {
+export function CreateLobbyScreen({ code, error, isLoading, onChangeCode, onCreate, onDemo, onJoin, onOpenHistory }: Props) {
   const isWeb = Platform.OS === 'web';
   return (
     <SafeAreaView style={[styles.safeArea, isWeb && styles.webCanvas]}>
@@ -42,6 +43,7 @@ export function CreateLobbyScreen({ code, error, isLoading, onChangeCode, onCrea
             <Text style={styles.secondaryText}>JOIN WITH CODE</Text>
           </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Pressable onPress={onDemo} style={styles.demoButton}><Text style={styles.demoText}>TRY LIVE BILL DEMO</Text></Pressable>
         </View>
 
         <View style={styles.nav}>
@@ -71,6 +73,8 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.5 },
   pressed: { opacity: 0.86, transform: [{ translateX: 2 }, { translateY: 2 }] },
   error: { color: '#761C2C', fontSize: 12, fontWeight: '700', marginTop: 10 },
+  demoButton: { alignItems: 'center', marginTop: 14, paddingVertical: 8 },
+  demoText: { color: '#3E4AA0', fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
   nav: { gap: 10 },
   navLink: { alignItems: 'center', backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   navText: { color: '#15121F', fontSize: 13, fontWeight: '800' },
