@@ -9,6 +9,7 @@ import { getLobbyServerUrl } from './lobbyServerUrl';
 
 type Props = {
   activityTimeline?: number[];
+  lobbyName?: string;
   onHome: () => void;
   players: FinalBillPlayer[];
   paymentUserId?: string;
@@ -30,7 +31,7 @@ function makeTimelineBuckets(activityTimeline: number[]) {
   });
 }
 
-export function SessionSummaryScreen({ activityTimeline = [], onHome, paymentUserId, players, roomCode, timelineLabels }: Props) {
+export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome, paymentUserId, players, roomCode, timelineLabels }: Props) {
   const [costInput, setCostInput] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -198,12 +199,13 @@ export function SessionSummaryScreen({ activityTimeline = [], onHome, paymentUse
         <Text style={styles.title}>
           {showReceipt ? <>split the <Text style={styles.accent}>bill</Text></> : <>final <Text style={styles.accent}>bill</Text></>}
         </Text>
+        {lobbyName ? <Text style={styles.lobbyName}>{lobbyName}</Text> : null}
 
         {showReceipt ? (
           <>
             <View ref={receiptRef} collapsable={false} style={styles.receiptCapture}>
               <Text style={styles.receiptBrand}>PHONE TIME</Text>
-              <Text style={styles.receiptHeading}>Shared bill receipt</Text>
+              <Text style={styles.receiptHeading}>{lobbyName || 'Shared bill receipt'}</Text>
               <Text style={styles.subtitle}>Meal total: ${cost.toFixed(2)}</Text>
               <View style={styles.card}>
                 {sorted.map((player) => {
@@ -303,6 +305,7 @@ const styles = StyleSheet.create({
   phoneFrame: { alignSelf: 'center', borderColor: '#15121F', borderLeftWidth: 3, borderRightWidth: 3, maxWidth: '100%', minHeight: '100%', width: 390 },
   eyebrow: { color: 'rgba(21,18,31,0.6)', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
   title: { color: '#15121F', fontSize: 31, fontWeight: '800' },
+  lobbyName: { color: '#3E4AA0', fontSize: 18, fontWeight: '800', marginTop: -12 },
   accent: { color: '#3E4AA0' },
   subtitle: { color: 'rgba(21,18,31,0.65)', fontSize: 14, fontWeight: '600', marginTop: -10 },
   receiptCapture: { backgroundColor: '#AAB7E9', gap: 14, padding: 2 },

@@ -7,10 +7,10 @@ import { useStackLobby } from './useStackLobby';
 import type { FinalBillPlayer, TimelineRange } from './useStackLobby';
 import { getLobbyServerUrl } from './lobbyServerUrl';
 
-type Props = { displayName?: string; userId?: string; roomCode?: string; onSessionEnded?: (players: FinalBillPlayer[], activityTimeline: number[], timelineRange: TimelineRange | null) => void };
+type Props = { displayName?: string; lobbyName?: string; userId?: string; roomCode?: string; onSessionEnded?: (players: FinalBillPlayer[], activityTimeline: number[], timelineRange: TimelineRange | null) => void };
 const LOBBY_SERVER_URL = getLobbyServerUrl();
 
-export function PhoneUsageBillScreen({ displayName, userId, roomCode: initialRoomCode, onSessionEnded }: Props) {
+export function PhoneUsageBillScreen({ displayName, lobbyName: initialLobbyName, userId, roomCode: initialRoomCode, onSessionEnded }: Props) {
   const isWeb = Platform.OS === 'web';
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isWeb ? sample(0, 0, -1) : null,
@@ -22,7 +22,7 @@ export function PhoneUsageBillScreen({ displayName, userId, roomCode: initialRoo
   const [shockwaveThreshold, setShockwaveThreshold] = useState(2.2);
   const [motionDeltaThreshold, setMotionDeltaThreshold] = useState(0.045);
   const [recentMotionMs, setRecentMotionMs] = useState(2000);
-  const { activeUserId, roomCode, isHost, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, endSession, joinRoom, playersArray, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode, displayName);
+  const { activeUserId, roomCode, lobbyName, isHost, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, endSession, joinRoom, playersArray, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode, displayName);
   const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading, orientationThreshold, shockwaveThreshold, motionDeltaThreshold, recentMotionMs });
   const groupPercent = playersArray.find((player) => player.userId === activeUserId)?.billPercent;
   const displayedPercent = roomCode && groupPercent !== undefined ? groupPercent : billPercent;
@@ -59,7 +59,8 @@ export function PhoneUsageBillScreen({ displayName, userId, roomCode: initialRoo
         <View style={styles.topRow}>
           <Text style={styles.eyebrow}>PHONE TIME</Text>
         </View>
-        <Text style={styles.title}>your share of the <Text style={styles.titleAccent}>bill</Text></Text>
+        <Text numberOfLines={2} style={styles.title}>{lobbyName || initialLobbyName || 'Your lobby'}</Text>
+        <Text style={styles.subtitle}>your share of the <Text style={styles.titleAccent}>bill</Text></Text>
         <Text style={styles.subtitle}>{roomCode ? 'Your use raises your share while lowering everyone else’s.' : 'Join a group to keep every linked phone’s total at 100%.'}</Text>
 
         <View style={styles.progressCard}>

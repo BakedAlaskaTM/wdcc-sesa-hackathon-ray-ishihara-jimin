@@ -141,6 +141,7 @@ function roomState(roomCode) {
   if (!room) return null;
   return {
     roomCode,
+    lobbyName: room.lobbyName,
     hostUserId: room.hostUserId,
     stackVerified: room.stackVerified,
     sessionStarted: room.sessionStarted,
@@ -217,10 +218,11 @@ function allPlayersReady(room) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('CREATE_ROOM', ({ userId, displayName }, acknowledge = () => {}) => {
+  socket.on('CREATE_ROOM', ({ userId, displayName, lobbyName }, acknowledge = () => {}) => {
     if (!userId) return acknowledge({ ok: false, error: 'userId is required.' });
     const roomCode = makeRoomCode();
-    rooms.set(roomCode, { hostUserId: userId, players: new Map(), stackVerified: false, sessionStarted: false, sessionEnded: false, finalPlayers: null, finalActivityTimeline: null, finalTimelineRange: null, sessionStartedAt: null, activityBySecond: new Map(), mealTotalCents: null, payments: new Map() });
+    const cleanLobbyName = String(lobbyName || '').trim().slice(0, 40) || 'Untitled lobby';
+    rooms.set(roomCode, { lobbyName: cleanLobbyName, hostUserId: userId, players: new Map(), stackVerified: false, sessionStarted: false, sessionEnded: false, finalPlayers: null, finalActivityTimeline: null, finalTimelineRange: null, sessionStartedAt: null, activityBySecond: new Map(), mealTotalCents: null, payments: new Map() });
     addPlayer(socket, roomCode, userId, displayName);
     acknowledge({ ok: true, ...roomState(roomCode) });
   });

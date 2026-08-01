@@ -1,7 +1,7 @@
 import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import type { WaitingPlayer } from './LobbyWaitingScreen';
 
-type Props = { lobbyCode: string; players: WaitingPlayer[]; hostUserId: string; isStarting: boolean; error?: string | null; onBack: () => void; onStart: () => void };
+type Props = { lobbyCode: string; lobbyName: string; players: WaitingPlayer[]; hostUserId: string; isStarting: boolean; error?: string | null; onBack: () => void; onStart: () => void };
 
 export function HostWaitingScreen({ lobbyCode, players, hostUserId, isStarting, error, onBack, onStart }: Props) {
   const isWeb = Platform.OS === 'web';

@@ -22,18 +22,19 @@ export default function App() {
   const [selectedGroup, setSelectedGroup] = useState<GroupHistory | null>(null);
   const [gameRoomCode, setGameRoomCode] = useState<string | undefined>();
   const [gamePlayerName, setGamePlayerName] = useState<string | undefined>();
+  const [gameLobbyName, setGameLobbyName] = useState<string | undefined>();
   const [finalPlayers, setFinalPlayers] = useState<FinalBillPlayer[]>([]);
   const [activityTimeline, setActivityTimeline] = useState<number[]>([]);
   const [timelineLabels, setTimelineLabels] = useState<{ start: string; end: string } | null>(null);
   const playerId = useRef(`player-${Math.random().toString(36).slice(2, 10)}`).current;
 
   if (screen === 'profile') return <ProfilePickerScreen onSelect={(selectedProfile) => { setProfile(selectedProfile); setSessionHistory(historyForProfile(selectedProfile)); setScreen('lobby'); }} />;
-  if (screen === 'bill') return <PhoneUsageBillScreen displayName={gamePlayerName} userId={playerId} roomCode={gameRoomCode} onSessionEnded={(players, timeline, timelineRange) => { setFinalPlayers(players); setActivityTimeline(timeline); setTimelineLabels(timelineRange ? { start: formatTimelineTime(timelineRange.startedAt), end: formatTimelineTime(timelineRange.endedAt) } : null); setScreen('summary'); }} />;
-  if (screen === 'summary') return <SessionSummaryScreen players={finalPlayers} activityTimeline={activityTimeline} paymentUserId={playerId} roomCode={gameRoomCode} timelineLabels={timelineLabels ?? undefined} onHome={() => { setFinalPlayers([]); setActivityTimeline([]); setTimelineLabels(null); setGameRoomCode(undefined); setGamePlayerName(undefined); setScreen('lobby'); }} />;
+  if (screen === 'bill') return <PhoneUsageBillScreen displayName={gamePlayerName} lobbyName={gameLobbyName} userId={playerId} roomCode={gameRoomCode} onSessionEnded={(players, timeline, timelineRange) => { setFinalPlayers(players); setActivityTimeline(timeline); setTimelineLabels(timelineRange ? { start: formatTimelineTime(timelineRange.startedAt), end: formatTimelineTime(timelineRange.endedAt) } : null); setScreen('summary'); }} />;
+  if (screen === 'summary') return <SessionSummaryScreen players={finalPlayers} activityTimeline={activityTimeline} lobbyName={gameLobbyName} paymentUserId={playerId} roomCode={gameRoomCode} timelineLabels={timelineLabels ?? undefined} onHome={() => { setFinalPlayers([]); setActivityTimeline([]); setTimelineLabels(null); setGameRoomCode(undefined); setGamePlayerName(undefined); setGameLobbyName(undefined); setScreen('lobby'); }} />;
   if (screen === 'demoLobby') return <DemoLobbyScreen onBack={() => setScreen('lobby')} onStart={() => setScreen('demo')} />;
   if (screen === 'demo') return <DemoBillScreen onHome={() => setScreen('lobby')} onEnd={(players, timeline) => { setFinalPlayers(players); setActivityTimeline(timeline); setTimelineLabels({ start: '6:14 PM', end: '8:04 PM' }); setScreen('summary'); }} />;
   if (screen === 'history') return <HistoryScreen groups={sessionHistory} profileName={profile ?? 'Your'} onBack={() => setScreen('lobby')} onOpenGroup={(group) => { setSelectedGroup(group); setScreen('scores'); }} onOpenMap={() => setScreen('map')} />;
   if (screen === 'map') return <MapScreen history={sessionHistory} profileName={profile ?? ''} onBack={() => setScreen('history')} />;
   if (screen === 'scores' && selectedGroup) return <GroupScoreScreen groupName={selectedGroup.name} members={selectedGroup.members} onBack={() => setScreen('history')} />;
-  return <StackDetectorScreen userId={playerId} onGameStarted={(roomCode, displayName) => { setGameRoomCode(roomCode); setGamePlayerName(displayName); setScreen('bill'); }} onOpenBill={() => setScreen('bill')} onOpenDemo={() => setScreen('demoLobby')} onOpenHistory={() => setScreen('history')} />;
+  return <StackDetectorScreen userId={playerId} onGameStarted={(roomCode, displayName, lobbyName) => { setGameRoomCode(roomCode); setGamePlayerName(displayName); setGameLobbyName(lobbyName); setScreen('bill'); }} onOpenBill={() => setScreen('bill')} onOpenDemo={() => setScreen('demoLobby')} onOpenHistory={() => setScreen('history')} />;
 }

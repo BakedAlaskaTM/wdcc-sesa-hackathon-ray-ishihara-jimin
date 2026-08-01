@@ -3,7 +3,7 @@ import { Animated, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, Sty
 
 export type WaitingPlayer = { userId: string; name: string };
 
-export function LobbyWaitingScreen({ lobbyCode, onBack, players, currentUserId }: { lobbyCode: string; onBack: () => void; players: WaitingPlayer[]; currentUserId: string }) {
+export function LobbyWaitingScreen({ lobbyCode, lobbyName, onBack, players, currentUserId }: { lobbyCode: string; lobbyName: string; onBack: () => void; players: WaitingPlayer[]; currentUserId: string }) {
   const isWeb = Platform.OS === 'web';
   const pulseValues = useRef([new Animated.Value(0.25), new Animated.Value(0.25), new Animated.Value(0.25)]).current;
 
@@ -24,7 +24,7 @@ export function LobbyWaitingScreen({ lobbyCode, onBack, players, currentUserId }
       <ScrollView contentContainerStyle={[styles.content, isWeb && styles.phoneFrame]} showsVerticalScrollIndicator={false}>
         <View>
           <Pressable onPress={onBack}><Text style={styles.back}>← Back</Text></Pressable>
-          <Text style={styles.headline}>hang tight,</Text>
+          <Text numberOfLines={2} style={styles.headline}>{lobbyName}</Text>
           <Text style={styles.tagline}>friends <Text style={styles.accent}>joining</Text></Text>
 
           <View style={styles.pulseRow}>
