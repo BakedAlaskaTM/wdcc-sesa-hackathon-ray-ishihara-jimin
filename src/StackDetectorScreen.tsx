@@ -17,8 +17,9 @@ import { useStackLobby } from './useStackLobby';
 import { EnterNameScreen } from './EnterNameScreen';
 import { LobbyWaitingScreen } from './LobbyWaitingScreen';
 import { HostWaitingScreen } from './HostWaitingScreen';
+import { getLobbyServerUrl } from './lobbyServerUrl';
 
-const LOBBY_SERVER_URL = process.env.EXPO_PUBLIC_LOBBY_SERVER_URL ?? 'http://localhost:3001';
+const LOBBY_SERVER_URL = getLobbyServerUrl();
 const DEMO_ROOM_CODE = '1111';
 const DEMO_PLAYERS = [
   { userId: 'ray', name: 'Ray', isReadyOnStack: true },

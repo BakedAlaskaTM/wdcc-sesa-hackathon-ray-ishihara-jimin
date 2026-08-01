@@ -3,9 +3,10 @@ import type { AccelerometerMeasurement } from 'expo-sensors';
 import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { usePhoneUsageBill } from './usePhoneUsageBill';
 import { useStackLobby } from './useStackLobby';
+import { getLobbyServerUrl } from './lobbyServerUrl';
 
 type Props = { onOpenStack: () => void };
-const LOBBY_SERVER_URL = process.env.EXPO_PUBLIC_LOBBY_SERVER_URL ?? 'http://localhost:3001';
+const LOBBY_SERVER_URL = getLobbyServerUrl();
 
 export function PhoneUsageBillScreen({ onOpenStack }: Props) {
   const isWeb = Platform.OS === 'web';

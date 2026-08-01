@@ -40,16 +40,34 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     };
   }, [applyRoomState, serverUrl]);
 
-  const emitWithAck = useCallback(<T,>(event: string, payload: object): Promise<T> => {
+  const emitWithAck = useCallback(async <T,>(event: string, payload: object): Promise<T> => {
     const socket = socketRef.current;
-    if (!socket?.connected) return Promise.reject(new Error('Lobby server is not connected.'));
+    if (!socket) throw new Error('Lobby connection is not available.');
+    if (!socket.connected) {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error(`Could not reach the lobby server at ${serverUrl}. Run "npm run server" and use "npm run start:lan" for phones.`));
+        }, 5_000);
+        const onConnect = () => { cleanup(); resolve(); };
+        const onError = () => { cleanup(); reject(new Error(`Could not connect to the lobby server at ${serverUrl}.`)); };
+        const cleanup = () => {
+          clearTimeout(timeout);
+          socket.off('connect', onConnect);
+          socket.off('connect_error', onError);
+        };
+        socket.once('connect', onConnect);
+        socket.once('connect_error', onError);
+        socket.connect();
+      });
+    }
     return new Promise((resolve, reject) => {
       socket.timeout(5_000).emit(event, payload, (error: Error | null, response: T) => {
         if (error) reject(new Error(`Timed out waiting for ${event}.`));
         else resolve(response);
       });
     });
-  }, []);
+  }, [serverUrl]);
 
   const createRoom = useCallback(async (displayName?: string) => {
     const response = await emitWithAck<RoomResponse>('CREATE_ROOM', { userId: activeUserId, displayName });
