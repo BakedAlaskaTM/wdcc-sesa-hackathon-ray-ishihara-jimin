@@ -18,6 +18,7 @@ import { EnterNameScreen } from './EnterNameScreen';
 import { LobbyWaitingScreen } from './LobbyWaitingScreen';
 import { HostWaitingScreen } from './HostWaitingScreen';
 import { getLobbyServerUrl } from './lobbyServerUrl';
+import { PutPhoneOnStackScreen } from './PutPhoneOnStackScreen';
 
 const LOBBY_SERVER_URL = getLobbyServerUrl();
 const DEMO_ROOM_CODE = '1111';
@@ -34,6 +35,7 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill }: { onOpenHisto
   const [playerName, setPlayerName] = useState('');
   const [isWaitingRoom, setIsWaitingRoom] = useState(false);
   const [isDemoRoom, setIsDemoRoom] = useState(false);
+  const [hasReachedPhoneStack, setHasReachedPhoneStack] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const isBrowserSimulator = Platform.OS === 'web';
@@ -61,6 +63,10 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill }: { onOpenHisto
   useEffect(() => {
     if (isSessionStarted) setIsWaitingRoom(false);
   }, [isSessionStarted]);
+
+  useEffect(() => {
+    if (isSessionStarted && isFaceDown) setHasReachedPhoneStack(true);
+  }, [isFaceDown, isSessionStarted]);
 
   const handleCreateRoom = async () => {
     setIsJoining(true); setLobbyError(null);
@@ -131,6 +137,8 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill }: { onOpenHisto
     if (isHost && !isDemoRoom) return <HostWaitingScreen error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} onStart={handleStartSession} players={waitingPlayers} />;
     return <LobbyWaitingScreen currentUserId={activeUserId} players={waitingPlayers} />;
   }
+
+  if (isSessionStarted && !hasReachedPhoneStack) return <PutPhoneOnStackScreen />;
 
   return <SafeAreaView style={[styles.safeArea, isBrowserSimulator && styles.webCanvas]}><StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" /><ScrollView style={styles.scroll} contentContainerStyle={[styles.container, isBrowserSimulator && styles.phoneFrame]} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
     <View style={styles.titleRow}><View style={styles.titleCopy}><Text style={styles.eyebrow}>STACK LOBBY</Text><Text style={styles.title}>phones, ready <Text style={styles.titleAccent}>together.</Text></Text></View><View style={styles.navButtons}>{onOpenBill && <Pressable onPress={onOpenBill} style={styles.historyButton}><Text style={styles.historyButtonText}>My bill</Text></Pressable>}{onOpenHistory && <Pressable onPress={onOpenHistory} style={styles.historyButton}><Text style={styles.historyButtonText}>History</Text></Pressable>}</View></View>
