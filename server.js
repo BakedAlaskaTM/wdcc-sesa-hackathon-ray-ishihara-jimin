@@ -45,8 +45,10 @@ function removePlayer(socket) {
     rebalanceBill(room);
     // The lobby creator remains the leader through short disconnects/rejoins,
     // so they do not lose the ability to start the session.
-    // Keep an empty room while clients move from the lobby into the bill screen.
-    if (room.players.size > 0) broadcastRoomState(roomCode);
+    // Preserve a started room while clients move into the bill screen, but
+    // discard an abandoned pre-game lobby when a user presses Back.
+    if (room.players.size === 0 && !room.sessionStarted) rooms.delete(roomCode);
+    else if (room.players.size > 0) broadcastRoomState(roomCode);
   }
   if (roomCode) socket.leave(roomCode);
   socket.data.roomCode = undefined;

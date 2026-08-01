@@ -6,12 +6,12 @@ type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[];
 type LobbyResponse = { ok: true; error?: never } | { ok: false; error: string };
 type RoomResponse = LobbyResponse & Partial<RoomState>;
 
-export function useStackLobby(serverUrl: string, userId?: string, initialRoomCode?: string) {
+export function useStackLobby(serverUrl: string, userId?: string, initialRoomCode?: string, initialDisplayName?: string) {
   const generatedUserId = useRef(`player-${Math.random().toString(36).slice(2, 10)}`);
   const activeUserId = userId ?? generatedUserId.current;
   const socketRef = useRef<Socket | null>(null);
   const roomCodeRef = useRef<string | null>(initialRoomCode ?? null);
-  const displayNameRef = useRef<string | undefined>(undefined);
+  const displayNameRef = useRef<string | undefined>(initialDisplayName);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [isHost, setIsHost] = useState(false);
   const [playersArray, setPlayersArray] = useState<StackPlayer[]>([]);
@@ -132,5 +132,16 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     if (!response.ok) throw new Error(response.error);
   }, [activeUserId, emitWithAck, roomCode]);
 
-  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, createRoom, joinRoom, updateDisplayName, startSession, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
+  const leaveRoom = useCallback(() => {
+    socketRef.current?.emit('LEAVE_ROOM');
+    roomCodeRef.current = null;
+    setRoomCode(null);
+    setIsHost(false);
+    setPlayersArray([]);
+    setIsAllReady(false);
+    setIsStackVerified(false);
+    setIsSessionStarted(false);
+  }, []);
+
+  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, createRoom, joinRoom, updateDisplayName, startSession, leaveRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
 }

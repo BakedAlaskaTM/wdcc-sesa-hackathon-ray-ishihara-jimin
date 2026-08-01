@@ -22,7 +22,7 @@ import { CreateLobbyScreen } from './CreateLobbyScreen';
 import { GenerateLobbyCodeScreen } from './GenerateLobbyCodeScreen';
 
 const LOBBY_SERVER_URL = getLobbyServerUrl();
-export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, userId }: { onOpenHistory?: () => void; onOpenBill?: () => void; onGameStarted?: (roomCode: string) => void; userId?: string }) {
+export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, userId }: { onOpenHistory?: () => void; onOpenBill?: () => void; onGameStarted?: (roomCode: string, displayName: string) => void; userId?: string }) {
   const [codeInput, setCodeInput] = useState('');
   const [pendingRoomCode, setPendingRoomCode] = useState<string | null>(null);
   const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isBrowserSimulator ? sample(0, 0, 0) : null,
   );
-  const { activeUserId, roomCode, isHost, playersArray, isStackVerified, isSessionStarted, createRoom, joinRoom, startSession, updateReadyState, sendShockwaveTimestamp } = useStackLobby(LOBBY_SERVER_URL, userId);
+  const { activeUserId, roomCode, isHost, playersArray, isStackVerified, isSessionStarted, createRoom, joinRoom, startSession, leaveRoom, updateReadyState, sendShockwaveTimestamp } = useStackLobby(LOBBY_SERVER_URL, userId);
 
   const handleShockwave = useCallback((timestamp: number) => {
     sendShockwaveTimestamp(timestamp).catch((error: Error) => setLobbyError(error.message));
@@ -53,8 +53,8 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
   }, [isFaceDown, isLifted, roomCode, updateReadyState]);
 
   useEffect(() => {
-    if (isSessionStarted && roomCode) onGameStarted?.(roomCode);
-  }, [isSessionStarted, onGameStarted, roomCode]);
+    if (isSessionStarted && roomCode) onGameStarted?.(roomCode, playerName);
+  }, [isSessionStarted, onGameStarted, playerName, roomCode]);
 
   const handleCreateRoom = async () => {
     setIsJoining(true); setLobbyError(null);
@@ -100,6 +100,15 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
     catch (error) { setLobbyError(error instanceof Error ? error.message : 'Could not start the session.'); }
     finally { setIsJoining(false); }
   };
+  const handleBackToLanding = () => {
+    leaveRoom();
+    setCodeInput('');
+    setPendingRoomCode(null);
+    setCreatedRoomCode(null);
+    setIsChoosingDifficulty(false);
+    setIsWaitingRoom(false);
+    setLobbyError(null);
+  };
 
   const activeRoomCode = roomCode;
   const activePlayers = playersArray.map((player, index) => ({ ...player, name: player.displayName || (player.userId === activeUserId && playerName ? playerName : `Phone ${index + 1}`) }));
@@ -111,17 +120,17 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
   const statusColor = isLifted ? '#FF6B6B' : isStackVerified ? '#76E5B1' : isFaceDown ? '#82A7FF' : '#F6C667';
 
   if (pendingRoomCode) {
-    return <EnterNameScreen error={lobbyError} isJoining={isJoining} lobbyCode={pendingRoomCode} onJoin={handleNameSubmit} />;
+    return <EnterNameScreen error={lobbyError} isJoining={isJoining} lobbyCode={pendingRoomCode} onBack={handleBackToLanding} onJoin={handleNameSubmit} />;
   }
 
   if (isWaitingRoom) {
     const waitingPlayers = activePlayers.map(({ userId, name }) => ({ userId, name }));
-    if (activeIsHost) return <HostWaitingScreen error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} lobbyCode={activeRoomCode ?? ''} onStart={handleStartSession} players={waitingPlayers} />;
-    return <LobbyWaitingScreen currentUserId={activeUserId} lobbyCode={activeRoomCode ?? ''} players={waitingPlayers} />;
+    if (activeIsHost) return <HostWaitingScreen error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} lobbyCode={activeRoomCode ?? ''} onBack={handleBackToLanding} onStart={handleStartSession} players={waitingPlayers} />;
+    return <LobbyWaitingScreen currentUserId={activeUserId} lobbyCode={activeRoomCode ?? ''} onBack={handleBackToLanding} players={waitingPlayers} />;
   }
 
   if (isChoosingDifficulty) {
-    return <GenerateLobbyCodeScreen isLoading={isJoining} onGenerate={handleCreateRoom} />;
+    return <GenerateLobbyCodeScreen isLoading={isJoining} onBack={handleBackToLanding} onGenerate={handleCreateRoom} />;
   }
 
   if (!activeRoomCode) {

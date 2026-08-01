@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 
 export type WaitingPlayer = { userId: string; name: string };
 
-export function LobbyWaitingScreen({ lobbyCode, players, currentUserId }: { lobbyCode: string; players: WaitingPlayer[]; currentUserId: string }) {
+export function LobbyWaitingScreen({ lobbyCode, onBack, players, currentUserId }: { lobbyCode: string; onBack: () => void; players: WaitingPlayer[]; currentUserId: string }) {
   const isWeb = Platform.OS === 'web';
   const pulseValues = useRef([new Animated.Value(0.25), new Animated.Value(0.25), new Animated.Value(0.25)]).current;
 
@@ -23,6 +23,7 @@ export function LobbyWaitingScreen({ lobbyCode, players, currentUserId }: { lobb
       <StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" />
       <ScrollView contentContainerStyle={[styles.content, isWeb && styles.phoneFrame]} showsVerticalScrollIndicator={false}>
         <View>
+          <Pressable onPress={onBack}><Text style={styles.back}>← Back</Text></Pressable>
           <Text style={styles.headline}>hang tight,</Text>
           <Text style={styles.tagline}>friends <Text style={styles.accent}>joining</Text></Text>
 
@@ -60,6 +61,7 @@ const styles = StyleSheet.create({
   webCanvas: { backgroundColor: '#AAB7E9' },
   phoneFrame: { alignSelf: 'center', borderColor: '#15121F', borderLeftWidth: 3, borderRightWidth: 3, maxWidth: '100%', minHeight: '100%', width: 390 },
   content: { flexGrow: 1, justifyContent: 'space-between', paddingBottom: 22, paddingHorizontal: 26, paddingTop: 52 },
+  back: { color: '#15121F', fontSize: 13, fontWeight: '800', marginBottom: 20 },
   headline: { color: '#15121F', fontSize: 26, fontWeight: '800', lineHeight: 28 },
   tagline: { color: '#15121F', fontSize: 26, fontWeight: '700', lineHeight: 28, marginBottom: 22 },
   accent: { color: '#3E4AA0', fontWeight: '800' },

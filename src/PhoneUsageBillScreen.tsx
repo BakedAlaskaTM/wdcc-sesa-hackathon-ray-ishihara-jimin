@@ -5,10 +5,10 @@ import { usePhoneUsageBill } from './usePhoneUsageBill';
 import { useStackLobby } from './useStackLobby';
 import { getLobbyServerUrl } from './lobbyServerUrl';
 
-type Props = { userId?: string; roomCode?: string };
+type Props = { displayName?: string; userId?: string; roomCode?: string };
 const LOBBY_SERVER_URL = getLobbyServerUrl();
 
-export function PhoneUsageBillScreen({ userId, roomCode: initialRoomCode }: Props) {
+export function PhoneUsageBillScreen({ displayName, userId, roomCode: initialRoomCode }: Props) {
   const isWeb = Platform.OS === 'web';
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isWeb ? sample(0, 0, -1) : null,
@@ -16,8 +16,8 @@ export function PhoneUsageBillScreen({ userId, roomCode: initialRoomCode }: Prop
   const [codeInput, setCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
-  const { activeUserId, roomCode, playersArray, createRoom, joinRoom, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode);
-  const { isUsingPhone, billPercent, activeSeconds, resetBill } = usePhoneUsageBill({ simulatedReading });
+  const { activeUserId, roomCode, playersArray, createRoom, joinRoom, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode, displayName);
+  const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading });
   const groupPercent = playersArray.find((player) => player.userId === activeUserId)?.billPercent;
   const displayedPercent = roomCode && groupPercent !== undefined ? groupPercent : billPercent;
   const color = isUsingPhone ? '#FF8A65' : '#60D9A2';
@@ -56,7 +56,7 @@ export function PhoneUsageBillScreen({ userId, roomCode: initialRoomCode }: Prop
 
         <View style={styles.groupCard}>
           <Text style={styles.simulatorTitle}>SHARED BILL GROUP</Text>
-          {roomCode ? <><Text style={styles.groupCode}>Code {roomCode}</Text><Text style={styles.groupHint}>{playersArray.length} linked phone{playersArray.length === 1 ? '' : 's'} · Total 100%</Text><View style={styles.memberList}>{playersArray.map((player, index) => <View key={player.userId} style={styles.memberRow}><Text style={styles.memberName}>{player.userId === activeUserId ? 'This phone' : player.displayName || `Phone ${index + 1}`}</Text><Text style={styles.memberShare}>{Math.round(player.billPercent)}%</Text></View>)}</View></> : <><View style={styles.codeRow}><TextInput value={codeInput} onChangeText={(value) => setCodeInput(value.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" maxLength={4} placeholder="0000" placeholderTextColor="#63708B" style={styles.codeInput} /><Pressable onPress={joinGroup} disabled={isJoining} style={styles.joinButton}>{isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.joinText}>Join</Text>}</Pressable></View><Pressable onPress={createGroup} disabled={isJoining} style={styles.createButton}><Text style={styles.createText}>Create group</Text></Pressable></>}
+          {roomCode ? <><Text style={styles.groupCode}>Code {roomCode}</Text><Text style={styles.groupHint}>{playersArray.length} linked phone{playersArray.length === 1 ? '' : 's'} · Total 100%</Text><View style={styles.memberList}>{playersArray.map((player) => <View key={player.userId} style={styles.memberRow}><Text style={styles.memberName}>{player.displayName}{player.userId === activeUserId ? ' (You)' : ''}</Text><Text style={styles.memberShare}>{Math.round(player.billPercent)}%</Text></View>)}</View></> : <><View style={styles.codeRow}><TextInput value={codeInput} onChangeText={(value) => setCodeInput(value.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" maxLength={4} placeholder="0000" placeholderTextColor="#63708B" style={styles.codeInput} /><Pressable onPress={joinGroup} disabled={isJoining} style={styles.joinButton}>{isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.joinText}>Join</Text>}</Pressable></View><Pressable onPress={createGroup} disabled={isJoining} style={styles.createButton}><Text style={styles.createText}>Create group</Text></Pressable></>}
           {lobbyError && <Text style={styles.error}>{lobbyError}</Text>}
         </View>
 
@@ -67,8 +67,6 @@ export function PhoneUsageBillScreen({ userId, roomCode: initialRoomCode }: Prop
             <Text style={styles.statusHint}>{isUsingPhone ? 'Movement or in-hand posture detected' : 'Phone is flat and still'}</Text>
           </View>
         </View>
-
-        <Pressable onPress={resetBill} style={styles.resetButton}><Text style={styles.resetText}>Reset bill share</Text></Pressable>
 
         {isWeb && <View style={styles.simulator}>
           <Text style={styles.simulatorTitle}>PC MOTION SIMULATOR</Text>
