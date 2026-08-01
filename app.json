@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "Phone Stack Detector",
+    "slug": "phone-stack-detector",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark"
+  }
+}
