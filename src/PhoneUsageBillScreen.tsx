@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccelerometerMeasurement } from 'expo-sensors';
+import Slider from '@react-native-community/slider';
 import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { usePhoneUsageBill } from './usePhoneUsageBill';
 import { useStackLobby } from './useStackLobby';
+import type { FinalBillPlayer, TimelineRange } from './useStackLobby';
 import { getLobbyServerUrl } from './lobbyServerUrl';
 
-type Props = { onOpenStack: () => void };
+type Props = { displayName?: string; userId?: string; roomCode?: string; onSessionEnded?: (players: FinalBillPlayer[], activityTimeline: number[], timelineRange: TimelineRange | null) => void };
 const LOBBY_SERVER_URL = getLobbyServerUrl();
 
-export function PhoneUsageBillScreen({ onOpenStack }: Props) {
+export function PhoneUsageBillScreen({ displayName, userId, roomCode: initialRoomCode, onSessionEnded }: Props) {
   const isWeb = Platform.OS === 'web';
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isWeb ? sample(0, 0, -1) : null,
@@ -16,8 +18,12 @@ export function PhoneUsageBillScreen({ onOpenStack }: Props) {
   const [codeInput, setCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
-  const { activeUserId, roomCode, playersArray, createRoom, joinRoom, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL);
-  const { isUsingPhone, billPercent, activeSeconds, resetBill } = usePhoneUsageBill({ simulatedReading });
+  const [orientationThreshold, setOrientationThreshold] = useState(0.82);
+  const [shockwaveThreshold, setShockwaveThreshold] = useState(2.2);
+  const [motionDeltaThreshold, setMotionDeltaThreshold] = useState(0.045);
+  const [recentMotionMs, setRecentMotionMs] = useState(2000);
+  const { activeUserId, roomCode, isHost, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, endSession, joinRoom, playersArray, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode, displayName);
+  const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading, orientationThreshold, shockwaveThreshold, motionDeltaThreshold, recentMotionMs });
   const groupPercent = playersArray.find((player) => player.userId === activeUserId)?.billPercent;
   const displayedPercent = roomCode && groupPercent !== undefined ? groupPercent : billPercent;
   const color = isUsingPhone ? '#FF8A65' : '#60D9A2';
@@ -28,6 +34,10 @@ export function PhoneUsageBillScreen({ onOpenStack }: Props) {
     return () => clearInterval(timer);
   }, [isUsingPhone, reportPhoneUse, roomCode]);
 
+  useEffect(() => {
+    if (isSessionEnded && finalPlayers.length) onSessionEnded?.(finalPlayers, finalActivityTimeline, finalTimelineRange);
+  }, [finalActivityTimeline, finalPlayers, finalTimelineRange, isSessionEnded, onSessionEnded]);
+
   const createGroup = useCallback(async () => {
     setIsJoining(true); setLobbyError(null);
     try { setCodeInput(await createRoom()); } catch (error) { setLobbyError(error instanceof Error ? error.message : 'Could not create group.'); } finally { setIsJoining(false); }
@@ -37,14 +47,17 @@ export function PhoneUsageBillScreen({ onOpenStack }: Props) {
     setIsJoining(true); setLobbyError(null);
     try { await joinRoom(codeInput.trim()); } catch (error) { setLobbyError(error instanceof Error ? error.message : 'Could not join group.'); } finally { setIsJoining(false); }
   }, [codeInput, joinRoom]);
+  const finishSession = useCallback(async () => {
+    setIsJoining(true); setLobbyError(null);
+    try { await endSession(); } catch (error) { setLobbyError(error instanceof Error ? error.message : 'Could not end the session.'); } finally { setIsJoining(false); }
+  }, [endSession]);
 
   return (
-    <SafeAreaView style={[styles.safeArea, isWeb && styles.webCanvas]}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" />
       <ScrollView contentContainerStyle={[styles.screen, isWeb && styles.phoneFrame]} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
-          <Text style={styles.eyebrow}>PHONE FAIR</Text>
-          <Pressable onPress={onOpenStack} hitSlop={10}><Text style={styles.link}>Stack mode</Text></Pressable>
+          <Text style={styles.eyebrow}>PHONE TIME</Text>
         </View>
         <Text style={styles.title}>your share of the <Text style={styles.titleAccent}>bill</Text></Text>
         <Text style={styles.subtitle}>{roomCode ? 'Your use raises your share while lowering everyone else’s.' : 'Join a group to keep every linked phone’s total at 100%.'}</Text>
@@ -57,9 +70,10 @@ export function PhoneUsageBillScreen({ onOpenStack }: Props) {
 
         <View style={styles.groupCard}>
           <Text style={styles.simulatorTitle}>SHARED BILL GROUP</Text>
-          {roomCode ? <><Text style={styles.groupCode}>Code {roomCode}</Text><Text style={styles.groupHint}>{playersArray.length} linked phone{playersArray.length === 1 ? '' : 's'} · Total 100%</Text><View style={styles.memberList}>{playersArray.map((player, index) => <View key={player.userId} style={styles.memberRow}><Text style={styles.memberName}>{player.userId === activeUserId ? 'This phone' : player.displayName || `Phone ${index + 1}`}</Text><Text style={styles.memberShare}>{Math.round(player.billPercent)}%</Text></View>)}</View></> : <><View style={styles.codeRow}><TextInput value={codeInput} onChangeText={(value) => setCodeInput(value.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" maxLength={4} placeholder="0000" placeholderTextColor="#63708B" style={styles.codeInput} /><Pressable onPress={joinGroup} disabled={isJoining} style={styles.joinButton}>{isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.joinText}>Join</Text>}</Pressable></View><Pressable onPress={createGroup} disabled={isJoining} style={styles.createButton}><Text style={styles.createText}>Create group</Text></Pressable></>}
+          {roomCode ? <><Text style={styles.groupCode}>Code {roomCode}</Text><Text style={styles.groupHint}>{playersArray.length} linked phone{playersArray.length === 1 ? '' : 's'} · Total 100%</Text><ScrollView horizontal contentContainerStyle={{ alignItems: 'flex-end', gap: 12, paddingTop: 10 }} showsHorizontalScrollIndicator={false}>{playersArray.map((player) => <View key={player.userId} style={{ alignItems: 'center', width: 64 }}><Text style={{ color: '#15121F', fontSize: 14, fontVariant: ['tabular-nums'], fontWeight: '800', marginBottom: 6 }}>{Math.round(player.billPercent)}%</Text><View style={{ backgroundColor: 'rgba(21,18,31,0.12)', borderColor: '#15121F', borderRadius: 8, borderWidth: 1, height: 128, justifyContent: 'flex-end', overflow: 'hidden', width: 38 }}><View style={{ backgroundColor: player.userId === activeUserId ? '#3E4AA0' : '#76E5B1', height: `${Math.max(2, Math.min(100, player.billPercent))}%`, width: '100%' }} /></View><Text numberOfLines={1} style={{ color: '#15121F', fontSize: 11, fontWeight: '800', marginTop: 7, textAlign: 'center', width: 64 }}>{player.displayName}{player.userId === activeUserId ? ' (You)' : ''}</Text></View>)}</ScrollView></> : <><View style={styles.codeRow}><TextInput value={codeInput} onChangeText={(value) => setCodeInput(value.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" maxLength={4} placeholder="0000" placeholderTextColor="#63708B" style={styles.codeInput} /><Pressable onPress={joinGroup} disabled={isJoining} style={styles.joinButton}>{isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.joinText}>Join</Text>}</Pressable></View><Pressable onPress={createGroup} disabled={isJoining} style={styles.createButton}><Text style={styles.createText}>Create group</Text></Pressable></>}
           {lobbyError && <Text style={styles.error}>{lobbyError}</Text>}
         </View>
+        {isHost && roomCode ? <Pressable disabled={isJoining} onPress={finishSession} style={{ alignItems: 'center', backgroundColor: '#15121F', borderColor: '#15121F', borderRadius: 14, borderWidth: 2.5, minHeight: 54, justifyContent: 'center' }}><Text style={{ color: '#F5EFDA', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 }}>END SESSION</Text></Pressable> : null}
 
         <View style={[styles.statusCard, { borderColor: color }]}>
           <View style={[styles.dot, { backgroundColor: color }]} />
@@ -69,7 +83,17 @@ export function PhoneUsageBillScreen({ onOpenStack }: Props) {
           </View>
         </View>
 
-        <Pressable onPress={resetBill} style={styles.resetButton}><Text style={styles.resetText}>Reset bill share</Text></Pressable>
+        {isHost ? <View style={{ backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, gap: 6, padding: 16 }}>
+          <Text style={styles.simulatorTitle}>MOTION CALIBRATION</Text>
+          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 4 }}>Flat orientation: {orientationThreshold.toFixed(2)}g</Text>
+          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={10} minimumTrackTintColor="#3E4AA0" minimumValue={0} onValueChange={setOrientationThreshold} step={0.01} thumbTintColor="#15121F" value={orientationThreshold} />
+          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Shockwave impact: {shockwaveThreshold.toFixed(1)}g</Text>
+          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={50} minimumTrackTintColor="#3E4AA0" minimumValue={0} onValueChange={setShockwaveThreshold} step={0.1} thumbTintColor="#15121F" value={shockwaveThreshold} />
+          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Movement sensitivity: {motionDeltaThreshold.toFixed(3)}g</Text>
+          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={0.2} minimumTrackTintColor="#3E4AA0" minimumValue={0.01} onValueChange={setMotionDeltaThreshold} step={0.005} thumbTintColor="#15121F" value={motionDeltaThreshold} />
+          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Movement hold: {(recentMotionMs / 1000).toFixed(1)}s</Text>
+          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={5000} minimumTrackTintColor="#3E4AA0" minimumValue={500} onValueChange={setRecentMotionMs} step={100} thumbTintColor="#15121F" value={recentMotionMs} />
+        </View> : null}
 
         {isWeb && <View style={styles.simulator}>
           <Text style={styles.simulatorTitle}>PC MOTION SIMULATOR</Text>

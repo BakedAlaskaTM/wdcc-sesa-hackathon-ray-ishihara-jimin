@@ -2,28 +2,41 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
 export type StackPlayer = { userId: string; displayName: string; isReadyOnStack: boolean; billPercent: number };
-type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean };
+export type FinalBillPlayer = Pick<StackPlayer, 'userId' | 'displayName' | 'billPercent'>;
+export type TimelineRange = { startedAt: number; endedAt: number };
+type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean; sessionEnded: boolean; finalPlayers: FinalBillPlayer[] | null; finalActivityTimeline: number[] | null; finalTimelineRange: TimelineRange | null };
 type LobbyResponse = { ok: true; error?: never } | { ok: false; error: string };
 type RoomResponse = LobbyResponse & Partial<RoomState>;
 
-export function useStackLobby(serverUrl: string, userId?: string) {
+export function useStackLobby(serverUrl: string, userId?: string, initialRoomCode?: string, initialDisplayName?: string) {
   const generatedUserId = useRef(`player-${Math.random().toString(36).slice(2, 10)}`);
   const activeUserId = userId ?? generatedUserId.current;
   const socketRef = useRef<Socket | null>(null);
+  const roomCodeRef = useRef<string | null>(initialRoomCode ?? null);
+  const displayNameRef = useRef<string | undefined>(initialDisplayName);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [isHost, setIsHost] = useState(false);
   const [playersArray, setPlayersArray] = useState<StackPlayer[]>([]);
   const [isAllReady, setIsAllReady] = useState(false);
   const [isStackVerified, setIsStackVerified] = useState(false);
   const [isSessionStarted, setIsSessionStarted] = useState(false);
+  const [isSessionEnded, setIsSessionEnded] = useState(false);
+  const [finalPlayers, setFinalPlayers] = useState<FinalBillPlayer[]>([]);
+  const [finalActivityTimeline, setFinalActivityTimeline] = useState<number[]>([]);
+  const [finalTimelineRange, setFinalTimelineRange] = useState<TimelineRange | null>(null);
 
   const applyRoomState = useCallback((state: RoomState) => {
+    roomCodeRef.current = state.roomCode;
     setRoomCode(state.roomCode);
     setIsHost(state.hostUserId === activeUserId);
     setPlayersArray(state.players);
     setIsAllReady(state.players.length > 0 && state.players.every((player) => player.isReadyOnStack));
     setIsStackVerified(state.stackVerified);
     setIsSessionStarted(Boolean(state.sessionStarted));
+    setIsSessionEnded(Boolean(state.sessionEnded));
+    setFinalPlayers(state.finalPlayers ?? []);
+    setFinalActivityTimeline(state.finalActivityTimeline ?? []);
+    setFinalTimelineRange(state.finalTimelineRange ?? null);
   }, [activeUserId]);
 
   useEffect(() => {
@@ -33,12 +46,29 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     socket.on('ALL_STACKED_READY', () => setIsAllReady(true));
     socket.on('STACK_VERIFIED', () => setIsStackVerified(true));
     socket.on('SESSION_STARTED', () => setIsSessionStarted(true));
+    socket.on('SESSION_ENDED', ({ players, activityTimeline, timelineRange }: { players: FinalBillPlayer[]; activityTimeline?: number[]; timelineRange?: TimelineRange }) => {
+      setFinalPlayers(players);
+      setFinalActivityTimeline(activityTimeline ?? []);
+      setFinalTimelineRange(timelineRange ?? null);
+      setIsSessionEnded(true);
+    });
+    // Socket.IO can reconnect after a device briefly loses Wi-Fi. Rejoin the
+    // same room so every phone receives the shared player list again.
+    const rejoinRoom = () => {
+      const savedRoomCode = roomCodeRef.current ?? initialRoomCode;
+      if (!savedRoomCode) return;
+      socket.timeout(5_000).emit('JOIN_ROOM', { roomCode: savedRoomCode, userId: activeUserId, displayName: displayNameRef.current }, (_error: Error | null, response: RoomResponse) => {
+        if (response?.ok && response.roomCode) applyRoomState(response as RoomState);
+      });
+    };
+    socket.on('connect', rejoinRoom);
     return () => {
+      socket.off('connect', rejoinRoom);
       socket.emit('LEAVE_ROOM');
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [applyRoomState, serverUrl]);
+  }, [activeUserId, applyRoomState, initialRoomCode, serverUrl]);
 
   const emitWithAck = useCallback(async <T,>(event: string, payload: object): Promise<T> => {
     const socket = socketRef.current;
@@ -77,6 +107,7 @@ export function useStackLobby(serverUrl: string, userId?: string) {
   }, [activeUserId, applyRoomState, emitWithAck]);
 
   const joinRoom = useCallback(async (code: string, displayName?: string) => {
+    displayNameRef.current = displayName;
     const response = await emitWithAck<RoomResponse>('JOIN_ROOM', { roomCode: code, userId: activeUserId, displayName });
     if (!response.ok || !response.roomCode) throw new Error(response.error ?? 'Could not join room.');
     applyRoomState(response as RoomState);
@@ -117,5 +148,26 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     if (!response.ok) throw new Error(response.error);
   }, [activeUserId, emitWithAck, roomCode]);
 
-  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, createRoom, joinRoom, updateDisplayName, startSession, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
+  const endSession = useCallback(async () => {
+    if (!roomCode) throw new Error('Join a room before ending the session.');
+    const response = await emitWithAck<LobbyResponse>('END_SESSION', { roomCode, userId: activeUserId });
+    if (!response.ok) throw new Error(response.error);
+  }, [activeUserId, emitWithAck, roomCode]);
+
+  const leaveRoom = useCallback(() => {
+    socketRef.current?.emit('LEAVE_ROOM');
+    roomCodeRef.current = null;
+    setRoomCode(null);
+    setIsHost(false);
+    setPlayersArray([]);
+    setIsAllReady(false);
+    setIsStackVerified(false);
+    setIsSessionStarted(false);
+    setIsSessionEnded(false);
+    setFinalPlayers([]);
+    setFinalActivityTimeline([]);
+    setFinalTimelineRange(null);
+  }, []);
+
+  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, joinRoom, updateDisplayName, startSession, endSession, leaveRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
 }

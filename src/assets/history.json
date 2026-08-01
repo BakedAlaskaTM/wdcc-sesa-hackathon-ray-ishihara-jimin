@@ -1,0 +1,89 @@
+[
+  {
+    "pos": "-36.851641, 174.767432",
+    "id": "ray",
+    "name": "Ray",
+    "lastSession": "Last Wednesday, 4:20 PM",
+    "duration": "42 min",
+    "members": [
+      { "id": "1", "name": "Ray", "percentage": 31, "color": "#5B7CFA" },
+      { "id": "2", "name": "Jimin", "percentage": 21, "color": "#53B7A8" },
+      { "id": "3", "name": "Nicole", "percentage": 48, "color": "#F0A35E" }
+    ]
+  },
+  {
+    "pos": "-36.8511355, 174.7662312",
+    "id": "bums",
+    "name": "Bums",
+    "lastSession": "13/07, 6:15 PM",
+    "duration": "65 min",
+    "members": [
+      { "id": "1", "name": "Devin", "percentage": 40, "color": "#E76F51" },
+      { "id": "2", "name": "Simon", "percentage": 35, "color": "#2A9D8F" },
+      { "id": "3", "name": "Richard", "percentage": 25, "color": "#E9C46A" }
+    ]
+  },
+  {
+    "pos": "-36.853167, 174.769995",
+    "id": "engineering",
+    "name": "Engineering",
+    "lastSession": "20/07, 8:10 PM",
+    "duration": "90 min",
+    "members": [
+      { "id": "1", "name": "Nikhil", "percentage": 50, "color": "#9B5DE5" },
+      { "id": "2", "name": "Jimin", "percentage": 20, "color": "#53B7A8" },
+      { "id": "3", "name": "Devin", "percentage": 15, "color": "#E76F51" },
+      { "id": "4", "name": "Nicole", "percentage": 15, "color": "#F0A35E" }
+    ]
+  },
+  {
+    "pos": "-36.845808, 174.766968",
+    "id": "engsci",
+    "name": "Engsci #1",
+    "lastSession": "Last Tuesday, 1:05 PM",
+    "duration": "30 min",
+    "members": [
+      { "id": "1", "name": "Simon", "percentage": 33, "color": "#2A9D8F" },
+      { "id": "2", "name": "Richard", "percentage": 33, "color": "#E9C46A" },
+      { "id": "3", "name": "Ray", "percentage": 34, "color": "#5B7CFA" }
+    ]
+  },
+  {
+    "pos": "-36.808657, 174.751047",
+    "id": "intoxication",
+    "name": "Intoxication",
+    "lastSession": "Last Monday, 7:45 PM",
+    "duration": "50 min",
+    "members": [
+      { "id": "1", "name": "Nicole", "percentage": 60, "color": "#F0A35E" },
+      { "id": "2", "name": "Devin", "percentage": 20, "color": "#E76F51" },
+      { "id": "3", "name": "Nikhil", "percentage": 20, "color": "#9B5DE5" }
+    ]
+  },
+  {
+    "pos": "-36.8492791, 174.7601634",
+    "id": "richard",
+    "name": "Richard",
+    "lastSession": "01/07, 6:30 PM",
+    "duration": "110 min",
+    "members": [
+      { "id": "1", "name": "Richard", "percentage": 45, "color": "#E9C46A" },
+      { "id": "2", "name": "Jimin", "percentage": 25, "color": "#53B7A8" },
+      { "id": "3", "name": "Simon", "percentage": 15, "color": "#2A9D8F" },
+      { "id": "4", "name": "Ray", "percentage": 15, "color": "#5B7CFA" }
+    ]
+  },
+  {
+    "pos": "-36.843395, 174.757227",
+    "id": "hackathon",
+    "name": "Hackathon",
+    "lastSession": "Yesterday, 6:30 PM",
+    "duration": "110 min",
+    "members": [
+      { "id": "1", "name": "Richard", "percentage": 45, "color": "#E9C46A" },
+      { "id": "2", "name": "Jimin", "percentage": 25, "color": "#53B7A8" },
+      { "id": "3", "name": "Simon", "percentage": 15, "color": "#2A9D8F" },
+      { "id": "4", "name": "Ray", "percentage": 15, "color": "#5B7CFA" }
+    ]
+  }
+]

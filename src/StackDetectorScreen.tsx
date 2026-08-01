@@ -19,22 +19,17 @@ import { LobbyWaitingScreen } from './LobbyWaitingScreen';
 import { HostWaitingScreen } from './HostWaitingScreen';
 import { getLobbyServerUrl } from './lobbyServerUrl';
 import { PutPhoneOnStackScreen } from './PutPhoneOnStackScreen';
+import { CreateLobbyScreen } from './CreateLobbyScreen';
+import { GenerateLobbyCodeScreen } from './GenerateLobbyCodeScreen';
 
 const LOBBY_SERVER_URL = getLobbyServerUrl();
-const DEMO_ROOM_CODE = '1111';
-const DEMO_PLAYERS = [
-  { userId: 'ray', name: 'Ray', isReadyOnStack: true },
-  { userId: 'jimin', name: 'Jimin', isReadyOnStack: false },
-  { userId: 'ishihara', name: 'Ishihara', isReadyOnStack: true },
-];
-
-export function StackDetectorScreen({ onOpenHistory, onOpenBill }: { onOpenHistory?: () => void; onOpenBill?: () => void }) {
+export function StackDetectorScreen({ onOpenHistory, onOpenBill, onOpenDemo, onGameStarted, userId }: { onOpenHistory?: () => void; onOpenBill?: () => void; onOpenDemo?: () => void; onGameStarted?: (roomCode: string, displayName: string) => void; userId?: string }) {
   const [codeInput, setCodeInput] = useState('');
   const [pendingRoomCode, setPendingRoomCode] = useState<string | null>(null);
-  const [pendingAsHost, setPendingAsHost] = useState(false);
+  const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
+  const [isChoosingDifficulty, setIsChoosingDifficulty] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [isWaitingRoom, setIsWaitingRoom] = useState(false);
-  const [isDemoRoom, setIsDemoRoom] = useState(false);
   const [hasReachedPhoneStack, setHasReachedPhoneStack] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
@@ -42,12 +37,11 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill }: { onOpenHisto
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isBrowserSimulator ? sample(0, 0, 0) : null,
   );
-  const { activeUserId, roomCode, isHost, playersArray, isStackVerified, isSessionStarted, createRoom, joinRoom, updateDisplayName, startSession, updateReadyState, sendShockwaveTimestamp } = useStackLobby(LOBBY_SERVER_URL);
+  const { activeUserId, roomCode, isHost, playersArray, isStackVerified, isSessionStarted, createRoom, joinRoom, startSession, leaveRoom, updateReadyState, sendShockwaveTimestamp } = useStackLobby(LOBBY_SERVER_URL, userId);
 
   const handleShockwave = useCallback((timestamp: number) => {
-    if (isDemoRoom) return;
     sendShockwaveTimestamp(timestamp).catch((error: Error) => setLobbyError(error.message));
-  }, [isDemoRoom, sendShockwaveTimestamp]);
+  }, [sendShockwaveTimestamp]);
 
   const { isFaceDown, isLifted, lastShockwaveTime, resetDetector } = usePhoneStackDetector({
     onShockwave: handleShockwave,
@@ -57,12 +51,12 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill }: { onOpenHisto
   });
 
   useEffect(() => {
-    if (roomCode && !isDemoRoom) updateReadyState(isFaceDown && !isLifted).catch((error: Error) => setLobbyError(error.message));
-  }, [isDemoRoom, isFaceDown, isLifted, roomCode, updateReadyState]);
+    if (roomCode) updateReadyState(isFaceDown && !isLifted).catch((error: Error) => setLobbyError(error.message));
+  }, [isFaceDown, isLifted, roomCode, updateReadyState]);
 
   useEffect(() => {
-    if (isSessionStarted) setIsWaitingRoom(false);
-  }, [isSessionStarted]);
+    if (isSessionStarted && roomCode) onGameStarted?.(roomCode, playerName);
+  }, [isSessionStarted, onGameStarted, playerName, roomCode]);
 
   useEffect(() => {
     if (isSessionStarted && isFaceDown) setHasReachedPhoneStack(true);
@@ -73,31 +67,30 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill }: { onOpenHisto
     try {
       const code = await createRoom();
       setCodeInput(code);
-      setPendingAsHost(true);
+      setCreatedRoomCode(code);
       setPendingRoomCode(code);
     } catch (error) { setLobbyError(error instanceof Error ? error.message : 'Could not create room.'); } finally { setIsJoining(false); }
+  };
+  const handleBeginCreate = () => {
+    setLobbyError(null);
+    setIsChoosingDifficulty(true);
   };
   const handleJoinRoom = async () => {
     const code = codeInput.trim();
     if (!/^\d{4}$/.test(code)) { setLobbyError('Enter a valid 4-digit lobby code.'); return; }
     setLobbyError(null);
-    setPendingAsHost(false);
+    setCreatedRoomCode(null);
     setPendingRoomCode(code);
   };
 
   const handleNameSubmit = async (name: string) => {
     if (!pendingRoomCode) return;
     setPlayerName(name);
-    if (pendingRoomCode === DEMO_ROOM_CODE) {
-      setIsDemoRoom(true);
-      setPendingRoomCode(null);
-      setIsWaitingRoom(true);
-      return;
-    }
     setIsJoining(true); setLobbyError(null);
     try {
-      if (pendingAsHost) await updateDisplayName(name);
-      else await joinRoom(pendingRoomCode, name);
+      // Joining again with the chosen name updates the host's existing player
+      // record too, avoiding a separate rename event that can be lost on mobile.
+      await joinRoom(pendingRoomCode, name);
       setPendingRoomCode(null);
       setIsWaitingRoom(true);
     } catch (error) {
@@ -113,38 +106,50 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill }: { onOpenHisto
     catch (error) { setLobbyError(error instanceof Error ? error.message : 'Could not start the session.'); }
     finally { setIsJoining(false); }
   };
+  const handleBackToLanding = () => {
+    leaveRoom();
+    setCodeInput('');
+    setPendingRoomCode(null);
+    setCreatedRoomCode(null);
+    setIsChoosingDifficulty(false);
+    setIsWaitingRoom(false);
+    setLobbyError(null);
+  };
 
-  const activeRoomCode = isDemoRoom ? DEMO_ROOM_CODE : roomCode;
-  const activePlayers = isDemoRoom
-    ? DEMO_PLAYERS.map((player, index) => index === 0 && playerName ? { ...player, name: playerName } : player)
-    : playersArray.map((player, index) => ({ ...player, name: player.displayName || (player.userId === activeUserId && playerName ? playerName : `Phone ${index + 1}`) }));
-  const activeIsHost = isDemoRoom || isHost;
-  const activeIsAllReady = activePlayers.length > 0 && activePlayers.every((player) => player.isReadyOnStack);
+  const activeRoomCode = roomCode;
+  const activePlayers = playersArray.map((player, index) => ({ ...player, name: player.displayName || (player.userId === activeUserId && playerName ? playerName : `Phone ${index + 1}`) }));
+  // Keep the creator on the host screen even while a socket reconnect is
+  // catching up with the server's room state.
+  const activeIsHost = isHost || (createdRoomCode !== null && createdRoomCode === roomCode);
 
-  const localStatus = isLifted ? 'PHONE LIFTED' : isStackVerified ? 'STACK VERIFIED' : activeIsAllReady ? 'WAITING FOR IMPACT' : isFaceDown ? 'READY ON STACK' : 'PLACE PHONE FACE DOWN';
+  const localStatus = isLifted ? 'PHONE LIFTED' : isStackVerified ? 'STACK VERIFIED' : isFaceDown ? 'PHONE FACE DOWN' : 'LOBBY ACTIVE';
   const statusColor = isLifted ? '#FF6B6B' : isStackVerified ? '#76E5B1' : isFaceDown ? '#82A7FF' : '#F6C667';
 
   if (pendingRoomCode) {
-    return <EnterNameScreen error={lobbyError} isJoining={isJoining} lobbyCode={pendingRoomCode} onJoin={handleNameSubmit} />;
-  }
-
-  if (isWaitingRoom) {
-    const waitingPlayers = isDemoRoom
-      ? [
-          { userId: activeUserId, name: playerName || 'You' },
-        ]
-      : activePlayers.map(({ userId, name }) => ({ userId, name }));
-    if (isHost && !isDemoRoom) return <HostWaitingScreen error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} onStart={handleStartSession} players={waitingPlayers} />;
-    return <LobbyWaitingScreen currentUserId={activeUserId} players={waitingPlayers} />;
+    return <EnterNameScreen error={lobbyError} isJoining={isJoining} lobbyCode={pendingRoomCode} onBack={handleBackToLanding} onJoin={handleNameSubmit} />;
   }
 
   if (isSessionStarted && !hasReachedPhoneStack) return <PutPhoneOnStackScreen />;
 
+  if (isWaitingRoom) {
+    const waitingPlayers = activePlayers.map(({ userId, name }) => ({ userId, name }));
+    if (activeIsHost) return <HostWaitingScreen error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} lobbyCode={activeRoomCode ?? ''} onBack={handleBackToLanding} onStart={handleStartSession} players={waitingPlayers} />;
+    return <LobbyWaitingScreen currentUserId={activeUserId} lobbyCode={activeRoomCode ?? ''} onBack={handleBackToLanding} players={waitingPlayers} />;
+  }
+
+  if (isChoosingDifficulty) {
+    return <GenerateLobbyCodeScreen isLoading={isJoining} onBack={handleBackToLanding} onGenerate={handleCreateRoom} />;
+  }
+
+  if (!activeRoomCode) {
+    return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={handleBeginCreate} onDemo={() => onOpenDemo?.()} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} />;
+  }
+
   return <SafeAreaView style={[styles.safeArea, isBrowserSimulator && styles.webCanvas]}><StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" /><ScrollView style={styles.scroll} contentContainerStyle={[styles.container, isBrowserSimulator && styles.phoneFrame]} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-    <View style={styles.titleRow}><View style={styles.titleCopy}><Text style={styles.eyebrow}>STACK LOBBY</Text><Text style={styles.title}>phones, ready <Text style={styles.titleAccent}>together.</Text></Text></View><View style={styles.navButtons}>{onOpenBill && <Pressable onPress={onOpenBill} style={styles.historyButton}><Text style={styles.historyButtonText}>My bill</Text></Pressable>}{onOpenHistory && <Pressable onPress={onOpenHistory} style={styles.historyButton}><Text style={styles.historyButtonText}>History</Text></Pressable>}</View></View>
+    <View style={styles.titleRow}><View style={styles.titleCopy}><Text style={styles.eyebrow}>STACK LOBBY</Text><Text style={styles.title}>phones, <Text style={styles.titleAccent}>together.</Text></Text></View><View style={styles.navButtons}>{onOpenBill && <Pressable onPress={onOpenBill} style={styles.historyButton}><Text style={styles.historyButtonText}>My bill</Text></Pressable>}{onOpenHistory && <Pressable onPress={onOpenHistory} style={styles.historyButton}><Text style={styles.historyButtonText}>History</Text></Pressable>}</View></View>
     <View style={styles.statusCard}><View style={[styles.dot, { backgroundColor: statusColor }]} /><View style={styles.statusCopy}><Text style={[styles.status, { color: statusColor }]}>{localStatus}</Text><Text style={styles.statusHint}>{lastShockwaveTime ? `Last impact ${new Date(lastShockwaveTime).toLocaleTimeString()}` : 'Sensor is active'}</Text></View><Pressable onPress={resetDetector} hitSlop={10}><Text style={styles.reset}>Reset</Text></Pressable></View>
-    {!activeRoomCode && <View style={styles.codeCard}><Text style={styles.sectionLabel}>LOBBY CODE</Text><View style={styles.codeRow}><TextInput value={codeInput} onChangeText={(value) => setCodeInput(value.replace(/\D/g, '').slice(0, 4))} editable={!isJoining} keyboardType="number-pad" maxLength={4} placeholder="0000" placeholderTextColor="#63708B" style={styles.codeInput} /><Pressable disabled={isJoining} onPress={handleJoinRoom} style={styles.joinButton}>{isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.joinText}>Join</Text>}</Pressable></View><Pressable disabled={isJoining} onPress={handleCreateRoom} style={styles.createButton}><Text style={styles.createText}>Create a new lobby</Text></Pressable>{lobbyError && <Text style={styles.error}>{lobbyError}</Text>}<Text style={styles.demoHint}>Demo room: 1111</Text></View>}
-    {activeRoomCode ? <View style={styles.playersCard}><View style={styles.playersHeader}><View style={styles.roomDetails}><Text style={styles.sectionLabel}>LIVE LOBBY</Text><Text style={styles.roomCode}>{activeRoomCode} {activeIsHost ? '• HOST' : ''}</Text></View><Text style={[styles.count, activeIsAllReady && styles.countReady]}>{activePlayers.filter((player) => player.isReadyOnStack).length}/{activePlayers.length} ready</Text></View><View style={styles.divider} />{activePlayers.map((player) => <View key={player.userId} style={styles.playerRow}><View style={[styles.playerDot, { backgroundColor: player.isReadyOnStack ? '#76E5B1' : '#F6C667' }]} /><Text numberOfLines={1} style={styles.playerName}>{player.name}</Text><Text style={[styles.playerState, { color: player.isReadyOnStack ? '#76E5B1' : '#F6C667' }]}>{player.isReadyOnStack ? 'ON STACK' : 'NOT READY'}</Text></View>)}{isDemoRoom && <Pressable onPress={() => { setIsDemoRoom(false); setCodeInput(''); }} style={styles.leaveButton}><Text style={styles.leaveText}>Leave lobby</Text></Pressable>}</View> : <Text style={styles.emptyState}>Enter a code to see every phone in the lobby.</Text>}
+    {!activeRoomCode && <View style={styles.codeCard}><Text style={styles.sectionLabel}>LOBBY CODE</Text><View style={styles.codeRow}><TextInput value={codeInput} onChangeText={(value) => setCodeInput(value.replace(/\D/g, '').slice(0, 4))} editable={!isJoining} keyboardType="number-pad" maxLength={4} placeholder="0000" placeholderTextColor="#63708B" style={styles.codeInput} /><Pressable disabled={isJoining} onPress={handleJoinRoom} style={styles.joinButton}>{isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.joinText}>Join</Text>}</Pressable></View><Pressable disabled={isJoining} onPress={handleCreateRoom} style={styles.createButton}><Text style={styles.createText}>Create a new lobby</Text></Pressable>{lobbyError && <Text style={styles.error}>{lobbyError}</Text>}</View>}
+    {activeRoomCode ? <View style={styles.playersCard}><View style={styles.playersHeader}><View style={styles.roomDetails}><Text style={styles.sectionLabel}>LIVE LOBBY</Text><Text style={styles.roomCode}>{activeRoomCode} {activeIsHost ? '• HOST' : ''}</Text></View><Text style={styles.count}>{activePlayers.length} connected</Text></View><View style={styles.divider} />{activePlayers.map((player) => <View key={player.userId} style={styles.playerRow}><View style={[styles.playerDot, { backgroundColor: '#237050' }]} /><Text numberOfLines={1} style={styles.playerName}>{player.name}</Text><Text style={[styles.playerState, { color: '#237050' }]}>CONNECTED</Text></View>)}</View> : <Text style={styles.emptyState}>Create a lobby or enter a code to join one.</Text>}
     {isBrowserSimulator && <View style={styles.simulator}><Text style={styles.sectionLabel}>PC SENSOR SIMULATOR</Text><Text style={styles.simulatorHint}>Inject G-force samples into the same detector hook.</Text><View style={styles.simulatorButtons}><SimulatorButton label="Place flat" onPress={() => setSimulatedReading(sample(0, 0, -1))} /><SimulatorButton label="Tap / shock" onPress={() => setSimulatedReading(sample(0, 0, -2.6))} /><SimulatorButton label="Lift phone" onPress={() => setSimulatedReading(sample(0, 0.7, -0.5))} /></View></View>}
   </ScrollView></SafeAreaView>;
 }
