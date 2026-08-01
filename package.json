@@ -15,8 +15,11 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@react-native-community/slider": "5.0.1",
+    "@stripe/stripe-react-native": "0.50.3",
+    "dotenv": "^17.4.2",
     "expo": "~54.0.36",
     "expo-constants": "~18.0.13",
+    "expo-linking": "~8.0.12",
     "expo-sensors": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "react": "19.1.0",
@@ -25,7 +28,8 @@
     "react-native-view-shot": "4.0.3",
     "react-native-web": "^0.21.0",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "stripe": "^22.4.0"
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",

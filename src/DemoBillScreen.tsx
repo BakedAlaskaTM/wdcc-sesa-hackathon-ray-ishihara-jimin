@@ -4,22 +4,28 @@ import type { FinalBillPlayer } from './useStackLobby';
 
 const names = ['Alex', 'Sam', 'Jordan', 'You'];
 
-export function DemoBillScreen({ onEnd, onHome }: { onEnd: (players: FinalBillPlayer[]) => void; onHome: () => void }) {
+export function DemoBillScreen({ onEnd, onHome }: { onEnd: (players: FinalBillPlayer[], activityTimeline: number[]) => void; onHome: () => void }) {
   const [shares, setShares] = useState([28, 22, 31, 19]);
+  // A quiet meal with a few visible shared phone-use moments before live updates begin.
+  const [activityTimeline, setActivityTimeline] = useState<number[]>([0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0]);
   const isWeb = Platform.OS === 'web';
   useEffect(() => {
-    const timer = setInterval(() => setShares((current) => {
-      const next = [...current];
-      const active = Math.floor(Math.random() * next.length);
-      const donor = (active + 1 + Math.floor(Math.random() * (next.length - 1))) % next.length;
-      const amount = Math.min(3, next[donor]);
-      next[active] += amount;
-      next[donor] -= amount;
-      return next;
-    }), 1000);
+    const timer = setInterval(() => {
+      setShares((current) => {
+        const next = [...current];
+        const active = Math.floor(Math.random() * next.length);
+        const donor = (active + 1 + Math.floor(Math.random() * (next.length - 1))) % next.length;
+        const amount = Math.min(3, next[donor]);
+        next[active] += amount;
+        next[donor] -= amount;
+        return next;
+      });
+      // Most of a relaxed meal is phone-free; use brief activity bursts for the demo heatmap.
+      setActivityTimeline((timeline) => [...timeline, Math.random() < 0.75 ? 0 : 1 + Math.floor(Math.random() * 4)]);
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
-  const endDemo = () => onEnd(shares.map((billPercent, index) => ({ userId: `demo-${index}`, displayName: names[index], billPercent })));
+  const endDemo = () => onEnd(shares.map((billPercent, index) => ({ userId: `demo-${index}`, displayName: names[index], billPercent })), activityTimeline);
   return <SafeAreaView style={styles.safeArea}><StatusBar backgroundColor="#AAB7E9" barStyle="dark-content" /><ScrollView contentContainerStyle={[styles.content, isWeb && styles.phoneFrame]}><Text style={styles.eyebrow}>DEMO MODE</Text><Text style={styles.title}>shared <Text style={styles.accent}>bill</Text></Text><Text style={styles.subtitle}>A simulated group updates every second.</Text><View style={styles.card}><Text style={styles.label}>LIVE SHARES · TOTAL 100%</Text><View style={styles.chart}>{shares.map((share, index) => <View key={names[index]} style={styles.column}><Text style={styles.value}>{share}%</Text><View style={styles.track}><View style={[styles.bar, { height: `${Math.max(2, share)}%`, backgroundColor: index === 3 ? '#3E4AA0' : '#76E5B1' }]} /></View><Text numberOfLines={1} style={styles.name}>{names[index]}</Text></View>)}</View></View><Pressable onPress={endDemo} style={styles.endButton}><Text style={styles.buttonText}>END BILL</Text></Pressable><Pressable onPress={onHome} style={styles.homeButton}><Text style={styles.homeText}>RETURN HOME</Text></Pressable></ScrollView></SafeAreaView>;
 }
 

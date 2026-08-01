@@ -3,7 +3,8 @@ import { io, type Socket } from 'socket.io-client';
 
 export type StackPlayer = { userId: string; displayName: string; isReadyOnStack: boolean; billPercent: number };
 export type FinalBillPlayer = Pick<StackPlayer, 'userId' | 'displayName' | 'billPercent'>;
-type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean; sessionEnded: boolean; finalPlayers: FinalBillPlayer[] | null };
+export type TimelineRange = { startedAt: number; endedAt: number };
+type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean; sessionEnded: boolean; finalPlayers: FinalBillPlayer[] | null; finalActivityTimeline: number[] | null; finalTimelineRange: TimelineRange | null };
 type LobbyResponse = { ok: true; error?: never } | { ok: false; error: string };
 type RoomResponse = LobbyResponse & Partial<RoomState>;
 
@@ -21,6 +22,8 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
   const [isSessionStarted, setIsSessionStarted] = useState(false);
   const [isSessionEnded, setIsSessionEnded] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState<FinalBillPlayer[]>([]);
+  const [finalActivityTimeline, setFinalActivityTimeline] = useState<number[]>([]);
+  const [finalTimelineRange, setFinalTimelineRange] = useState<TimelineRange | null>(null);
 
   const applyRoomState = useCallback((state: RoomState) => {
     roomCodeRef.current = state.roomCode;
@@ -32,6 +35,8 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     setIsSessionStarted(Boolean(state.sessionStarted));
     setIsSessionEnded(Boolean(state.sessionEnded));
     setFinalPlayers(state.finalPlayers ?? []);
+    setFinalActivityTimeline(state.finalActivityTimeline ?? []);
+    setFinalTimelineRange(state.finalTimelineRange ?? null);
   }, [activeUserId]);
 
   useEffect(() => {
@@ -41,8 +46,10 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     socket.on('ALL_STACKED_READY', () => setIsAllReady(true));
     socket.on('STACK_VERIFIED', () => setIsStackVerified(true));
     socket.on('SESSION_STARTED', () => setIsSessionStarted(true));
-    socket.on('SESSION_ENDED', ({ players }: { players: FinalBillPlayer[] }) => {
+    socket.on('SESSION_ENDED', ({ players, activityTimeline, timelineRange }: { players: FinalBillPlayer[]; activityTimeline?: number[]; timelineRange?: TimelineRange }) => {
       setFinalPlayers(players);
+      setFinalActivityTimeline(activityTimeline ?? []);
+      setFinalTimelineRange(timelineRange ?? null);
       setIsSessionEnded(true);
     });
     // Socket.IO can reconnect after a device briefly loses Wi-Fi. Rejoin the
@@ -158,7 +165,9 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     setIsSessionStarted(false);
     setIsSessionEnded(false);
     setFinalPlayers([]);
+    setFinalActivityTimeline([]);
+    setFinalTimelineRange(null);
   }, []);
 
-  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, isSessionEnded, finalPlayers, createRoom, joinRoom, updateDisplayName, startSession, endSession, leaveRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
+  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, joinRoom, updateDisplayName, startSession, endSession, leaveRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
 }
