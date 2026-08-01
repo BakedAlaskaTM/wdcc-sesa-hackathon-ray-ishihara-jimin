@@ -9,4 +9,4 @@ npm install
 npm start
 ```
 
-Edit the `members` array in `App.js` to change the displayed names and percentages. The bars update from the same percentage values.
+Edit the `members` array in `src/GroupScoreScreen.tsx` to change the displayed names and percentages. The bars update from the same percentage values.

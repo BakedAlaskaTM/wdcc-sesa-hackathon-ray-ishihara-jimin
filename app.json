@@ -1,17 +1,12 @@
 {
   "expo": {
-    "name": "Ray Group Score",
-    "slug": "ray-group-score",
+    "name": "Phone Stack Detector",
+    "slug": "phone-stack-detector",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
       "backgroundColor": "#F5F7FA"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#F5F7FA"
-      }
     }
   }
 }
