@@ -8,19 +8,19 @@ export type GroupMember = {
 };
 
 // Replace this array with scores from the API or app state.
-const members: GroupMember[] = [
+const defaultMembers: GroupMember[] = [
   { id: '1', name: 'Bob Dylan', percentage: 24, color: '#5B7CFA' },
   { id: '2', name: 'Ben Carter', percentage: 26, color: '#53B7A8' },
   { id: '3', name: 'Mia Chen', percentage: 21, color: '#F0A35E' },
   { id: '4', name: 'Ray Patel', percentage: 29, color: '#A978E8' },
 ];
 
-export function GroupScoreScreen() {
+export function GroupScoreScreen({ groupName = 'Ray', members = defaultMembers, onBack }: { groupName?: string; members?: GroupMember[]; onBack?: () => void }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Go back" hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" hitSlop={12} onPress={onBack}>
           {({ pressed }) => (
             <View style={[styles.backButton, pressed && styles.pressed]}>
               <Text style={styles.backIcon}>‹</Text>
@@ -30,13 +30,13 @@ export function GroupScoreScreen() {
         </Pressable>
         <View style={styles.groupDetails}>
           <Text style={styles.groupLabel}>GROUP</Text>
-          <Text style={styles.groupName}>Ray</Text>
+          <Text style={styles.groupName}>{groupName}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Phone use scores</Text>
-        <Text style={styles.subtitle}>Each bar represents a member’s current share.</Text>
+        <Text style={styles.subtitle}>Each member’s share of the group’s total lifted-phone time. Shares total 100%.</Text>
         <View style={styles.memberList}>
           {members.map((member) => <MemberScore key={member.id} member={member} />)}
         </View>
