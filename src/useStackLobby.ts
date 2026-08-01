@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
-export type StackPlayer = { userId: string; isReadyOnStack: boolean; billPercent: number };
-type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean };
+export type StackPlayer = { userId: string; displayName: string; isReadyOnStack: boolean; billPercent: number };
+type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean };
 type LobbyResponse = { ok: true; error?: never } | { ok: false; error: string };
 type RoomResponse = LobbyResponse & Partial<RoomState>;
 
@@ -15,6 +15,7 @@ export function useStackLobby(serverUrl: string, userId?: string) {
   const [playersArray, setPlayersArray] = useState<StackPlayer[]>([]);
   const [isAllReady, setIsAllReady] = useState(false);
   const [isStackVerified, setIsStackVerified] = useState(false);
+  const [isSessionStarted, setIsSessionStarted] = useState(false);
 
   const applyRoomState = useCallback((state: RoomState) => {
     setRoomCode(state.roomCode);
@@ -22,6 +23,7 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     setPlayersArray(state.players);
     setIsAllReady(state.players.length > 0 && state.players.every((player) => player.isReadyOnStack));
     setIsStackVerified(state.stackVerified);
+    setIsSessionStarted(Boolean(state.sessionStarted));
   }, [activeUserId]);
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     socket.on('PLAYER_LIST_UPDATED', applyRoomState);
     socket.on('ALL_STACKED_READY', () => setIsAllReady(true));
     socket.on('STACK_VERIFIED', () => setIsStackVerified(true));
+    socket.on('SESSION_STARTED', () => setIsSessionStarted(true));
     return () => {
       socket.emit('LEAVE_ROOM');
       socket.disconnect();
@@ -48,15 +51,15 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     });
   }, []);
 
-  const createRoom = useCallback(async () => {
-    const response = await emitWithAck<RoomResponse>('CREATE_ROOM', { userId: activeUserId });
+  const createRoom = useCallback(async (displayName?: string) => {
+    const response = await emitWithAck<RoomResponse>('CREATE_ROOM', { userId: activeUserId, displayName });
     if (!response.ok || !response.roomCode) throw new Error(response.error ?? 'Could not create room.');
     applyRoomState(response as RoomState);
     return response.roomCode;
   }, [activeUserId, applyRoomState, emitWithAck]);
 
-  const joinRoom = useCallback(async (code: string) => {
-    const response = await emitWithAck<RoomResponse>('JOIN_ROOM', { roomCode: code, userId: activeUserId });
+  const joinRoom = useCallback(async (code: string, displayName?: string) => {
+    const response = await emitWithAck<RoomResponse>('JOIN_ROOM', { roomCode: code, userId: activeUserId, displayName });
     if (!response.ok || !response.roomCode) throw new Error(response.error ?? 'Could not join room.');
     applyRoomState(response as RoomState);
   }, [activeUserId, applyRoomState, emitWithAck]);
@@ -83,5 +86,18 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     if (!response.ok) throw new Error(response.error);
   }, [activeUserId, emitWithAck, roomCode]);
 
-  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, createRoom, joinRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
+  const updateDisplayName = useCallback(async (displayName: string) => {
+    if (!roomCode) throw new Error('Create or join a room before setting your name.');
+    const response = await emitWithAck<RoomResponse>('UPDATE_DISPLAY_NAME', { roomCode, userId: activeUserId, displayName });
+    if (!response.ok) throw new Error(response.error);
+    if (response.roomCode) applyRoomState(response as RoomState);
+  }, [activeUserId, applyRoomState, emitWithAck, roomCode]);
+
+  const startSession = useCallback(async () => {
+    if (!roomCode) throw new Error('Create a room before starting.');
+    const response = await emitWithAck<LobbyResponse>('START_SESSION', { roomCode, userId: activeUserId });
+    if (!response.ok) throw new Error(response.error);
+  }, [activeUserId, emitWithAck, roomCode]);
+
+  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, createRoom, joinRoom, updateDisplayName, startSession, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
 }

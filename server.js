@@ -21,7 +21,8 @@ function roomState(roomCode) {
     roomCode,
     hostUserId: room.hostUserId,
     stackVerified: room.stackVerified,
-    players: [...room.players.values()].map(({ userId, isReadyOnStack, billPercent }) => ({ userId, isReadyOnStack, billPercent })),
+    sessionStarted: room.sessionStarted,
+    players: [...room.players.values()].map(({ userId, displayName, isReadyOnStack, billPercent }) => ({ userId, displayName, isReadyOnStack, billPercent })),
   };
 }
 
@@ -51,10 +52,15 @@ function removePlayer(socket) {
   socket.data.userId = undefined;
 }
 
-function addPlayer(socket, roomCode, userId) {
+function cleanDisplayName(displayName) {
+  const name = String(displayName || '').trim().slice(0, 24);
+  return name || 'Player';
+}
+
+function addPlayer(socket, roomCode, userId, displayName) {
   removePlayer(socket);
   const room = rooms.get(roomCode);
-  room.players.set(userId, { userId, socketId: socket.id, isReadyOnStack: false, billPercent: 0 });
+  room.players.set(userId, { userId, displayName: cleanDisplayName(displayName), socketId: socket.id, isReadyOnStack: false, billPercent: 0 });
   rebalanceBill(room);
   socket.join(roomCode);
   socket.data.roomCode = roomCode;
@@ -67,19 +73,39 @@ function allPlayersReady(room) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('CREATE_ROOM', ({ userId }, acknowledge = () => {}) => {
+  socket.on('CREATE_ROOM', ({ userId, displayName }, acknowledge = () => {}) => {
     if (!userId) return acknowledge({ ok: false, error: 'userId is required.' });
     const roomCode = makeRoomCode();
-    rooms.set(roomCode, { hostUserId: userId, players: new Map(), stackVerified: false });
-    addPlayer(socket, roomCode, userId);
+    rooms.set(roomCode, { hostUserId: userId, players: new Map(), stackVerified: false, sessionStarted: false });
+    addPlayer(socket, roomCode, userId, displayName);
     acknowledge({ ok: true, ...roomState(roomCode) });
   });
 
-  socket.on('JOIN_ROOM', ({ roomCode, userId }, acknowledge = () => {}) => {
+  socket.on('JOIN_ROOM', ({ roomCode, userId, displayName }, acknowledge = () => {}) => {
     const code = String(roomCode || '').trim();
     if (!userId || !rooms.has(code)) return acknowledge({ ok: false, error: 'Room not found.' });
-    addPlayer(socket, code, userId);
+    addPlayer(socket, code, userId, displayName);
     acknowledge({ ok: true, ...roomState(code) });
+  });
+
+  socket.on('UPDATE_DISPLAY_NAME', ({ roomCode, userId, displayName }, acknowledge = () => {}) => {
+    const room = rooms.get(roomCode);
+    const player = room?.players.get(userId);
+    if (!room || !player || player.socketId !== socket.id) return acknowledge({ ok: false, error: 'You are not a player in this room.' });
+    player.displayName = cleanDisplayName(displayName);
+    broadcastRoomState(roomCode);
+    acknowledge({ ok: true, ...roomState(roomCode) });
+  });
+
+  socket.on('START_SESSION', ({ roomCode, userId }, acknowledge = () => {}) => {
+    const room = rooms.get(roomCode);
+    const player = room?.players.get(userId);
+    if (!room || !player || player.socketId !== socket.id) return acknowledge({ ok: false, error: 'You are not a player in this room.' });
+    if (room.hostUserId !== userId) return acknowledge({ ok: false, error: 'Only the host can start the session.' });
+    room.sessionStarted = true;
+    io.to(roomCode).emit('SESSION_STARTED');
+    broadcastRoomState(roomCode);
+    acknowledge({ ok: true });
   });
 
   socket.on('UPDATE_STATUS', ({ roomCode, userId, isReadyOnStack }, acknowledge = () => {}) => {
