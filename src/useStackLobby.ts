@@ -6,7 +6,7 @@ type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[];
 type LobbyResponse = { ok: true; error?: never } | { ok: false; error: string };
 type RoomResponse = LobbyResponse & Partial<RoomState>;
 
-export function useStackLobby(serverUrl: string, userId?: string) {
+export function useStackLobby(serverUrl: string, userId?: string, initialRoomCode?: string) {
   const generatedUserId = useRef(`player-${Math.random().toString(36).slice(2, 10)}`);
   const activeUserId = userId ?? generatedUserId.current;
   const socketRef = useRef<Socket | null>(null);
@@ -33,12 +33,19 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     socket.on('ALL_STACKED_READY', () => setIsAllReady(true));
     socket.on('STACK_VERIFIED', () => setIsStackVerified(true));
     socket.on('SESSION_STARTED', () => setIsSessionStarted(true));
+    if (initialRoomCode) {
+      socket.on('connect', () => {
+        socket.timeout(5_000).emit('JOIN_ROOM', { roomCode: initialRoomCode, userId: activeUserId }, (_error: Error | null, response: RoomResponse) => {
+          if (response?.ok && response.roomCode) applyRoomState(response as RoomState);
+        });
+      });
+    }
     return () => {
       socket.emit('LEAVE_ROOM');
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [applyRoomState, serverUrl]);
+  }, [activeUserId, applyRoomState, initialRoomCode, serverUrl]);
 
   const emitWithAck = useCallback(async <T,>(event: string, payload: object): Promise<T> => {
     const socket = socketRef.current;

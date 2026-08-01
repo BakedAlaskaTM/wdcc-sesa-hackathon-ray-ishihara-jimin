@@ -23,6 +23,8 @@ export type PhoneStackDetectorOptions = {
   faceDownZDirection?: FaceDownZDirection;
   /** Optional synthetic sample, useful for browser demos and automated tests. */
   simulatedReading?: AccelerometerMeasurement | null;
+  /** Start listening only once the player has explicitly armed the sensor. */
+  enabled?: boolean;
 };
 
 export type PhoneStackDetectorState = {
@@ -50,6 +52,7 @@ export function usePhoneStackDetector(
     shockwaveDebounceMs = 1000,
     faceDownZDirection = 'either',
     simulatedReading = null,
+    enabled = true,
   } = options;
 
   const [isFaceDown, setIsFaceDown] = useState(false);
@@ -122,6 +125,7 @@ export function usePhoneStackDetector(
   );
 
   useEffect(() => {
+    if (!enabled) return;
     // A supplied synthetic sample deliberately replaces hardware input.
     if (simulatedReading) {
       processReading(simulatedReading);
@@ -135,6 +139,7 @@ export function usePhoneStackDetector(
   }, [
     processReading,
     simulatedReading,
+    enabled,
   ]);
 
   return { isFaceDown, isLifted, lastShockwaveTime, resetDetector };

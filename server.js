@@ -44,8 +44,8 @@ function removePlayer(socket) {
     room.players.delete(userId);
     rebalanceBill(room);
     if (room.hostUserId === userId) room.hostUserId = room.players.keys().next().value || '';
-    if (room.players.size === 0) rooms.delete(roomCode);
-    else broadcastRoomState(roomCode);
+    // Keep an empty room while clients move from the lobby into the bill screen.
+    if (room.players.size > 0) broadcastRoomState(roomCode);
   }
   if (roomCode) socket.leave(roomCode);
   socket.data.roomCode = undefined;

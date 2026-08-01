@@ -5,10 +5,10 @@ import { usePhoneUsageBill } from './usePhoneUsageBill';
 import { useStackLobby } from './useStackLobby';
 import { getLobbyServerUrl } from './lobbyServerUrl';
 
-type Props = { onOpenStack: () => void };
+type Props = { userId?: string; roomCode?: string };
 const LOBBY_SERVER_URL = getLobbyServerUrl();
 
-export function PhoneUsageBillScreen({ onOpenStack }: Props) {
+export function PhoneUsageBillScreen({ userId, roomCode: initialRoomCode }: Props) {
   const isWeb = Platform.OS === 'web';
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isWeb ? sample(0, 0, -1) : null,
@@ -16,7 +16,7 @@ export function PhoneUsageBillScreen({ onOpenStack }: Props) {
   const [codeInput, setCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
-  const { activeUserId, roomCode, playersArray, createRoom, joinRoom, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL);
+  const { activeUserId, roomCode, playersArray, createRoom, joinRoom, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode);
   const { isUsingPhone, billPercent, activeSeconds, resetBill } = usePhoneUsageBill({ simulatedReading });
   const groupPercent = playersArray.find((player) => player.userId === activeUserId)?.billPercent;
   const displayedPercent = roomCode && groupPercent !== undefined ? groupPercent : billPercent;
@@ -44,7 +44,6 @@ export function PhoneUsageBillScreen({ onOpenStack }: Props) {
       <ScrollView contentContainerStyle={[styles.screen, isWeb && styles.phoneFrame]} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <Text style={styles.eyebrow}>PHONE FAIR</Text>
-          <Pressable onPress={onOpenStack} hitSlop={10}><Text style={styles.link}>Stack mode</Text></Pressable>
         </View>
         <Text style={styles.title}>your share of the <Text style={styles.titleAccent}>bill</Text></Text>
         <Text style={styles.subtitle}>{roomCode ? 'Your use raises your share while lowering everyone else’s.' : 'Join a group to keep every linked phone’s total at 100%.'}</Text>
