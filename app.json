@@ -4,6 +4,9 @@
     "slug": "phone-stack-detector",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark"
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#F5F7FA"
+    }
   }
 }
