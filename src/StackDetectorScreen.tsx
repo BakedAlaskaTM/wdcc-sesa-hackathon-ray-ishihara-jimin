@@ -18,12 +18,15 @@ import { EnterNameScreen } from './EnterNameScreen';
 import { LobbyWaitingScreen } from './LobbyWaitingScreen';
 import { HostWaitingScreen } from './HostWaitingScreen';
 import { getLobbyServerUrl } from './lobbyServerUrl';
+import { CreateLobbyScreen } from './CreateLobbyScreen';
+import { GenerateLobbyCodeScreen } from './GenerateLobbyCodeScreen';
 
 const LOBBY_SERVER_URL = getLobbyServerUrl();
 export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, userId }: { onOpenHistory?: () => void; onOpenBill?: () => void; onGameStarted?: (roomCode: string) => void; userId?: string }) {
   const [codeInput, setCodeInput] = useState('');
   const [pendingRoomCode, setPendingRoomCode] = useState<string | null>(null);
-  const [pendingAsHost, setPendingAsHost] = useState(false);
+  const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
+  const [isChoosingDifficulty, setIsChoosingDifficulty] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [isWaitingRoom, setIsWaitingRoom] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
@@ -32,7 +35,7 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isBrowserSimulator ? sample(0, 0, 0) : null,
   );
-  const { activeUserId, roomCode, isHost, playersArray, isStackVerified, isSessionStarted, createRoom, joinRoom, updateDisplayName, startSession, updateReadyState, sendShockwaveTimestamp } = useStackLobby(LOBBY_SERVER_URL, userId);
+  const { activeUserId, roomCode, isHost, playersArray, isStackVerified, isSessionStarted, createRoom, joinRoom, startSession, updateReadyState, sendShockwaveTimestamp } = useStackLobby(LOBBY_SERVER_URL, userId);
 
   const handleShockwave = useCallback((timestamp: number) => {
     sendShockwaveTimestamp(timestamp).catch((error: Error) => setLobbyError(error.message));
@@ -58,15 +61,19 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
     try {
       const code = await createRoom();
       setCodeInput(code);
-      setPendingAsHost(true);
+      setCreatedRoomCode(code);
       setPendingRoomCode(code);
     } catch (error) { setLobbyError(error instanceof Error ? error.message : 'Could not create room.'); } finally { setIsJoining(false); }
+  };
+  const handleBeginCreate = () => {
+    setLobbyError(null);
+    setIsChoosingDifficulty(true);
   };
   const handleJoinRoom = async () => {
     const code = codeInput.trim();
     if (!/^\d{4}$/.test(code)) { setLobbyError('Enter a valid 4-digit lobby code.'); return; }
     setLobbyError(null);
-    setPendingAsHost(false);
+    setCreatedRoomCode(null);
     setPendingRoomCode(code);
   };
 
@@ -75,8 +82,9 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
     setPlayerName(name);
     setIsJoining(true); setLobbyError(null);
     try {
-      if (pendingAsHost) await updateDisplayName(name);
-      else await joinRoom(pendingRoomCode, name);
+      // Joining again with the chosen name updates the host's existing player
+      // record too, avoiding a separate rename event that can be lost on mobile.
+      await joinRoom(pendingRoomCode, name);
       setPendingRoomCode(null);
       setIsWaitingRoom(true);
     } catch (error) {
@@ -95,7 +103,9 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
 
   const activeRoomCode = roomCode;
   const activePlayers = playersArray.map((player, index) => ({ ...player, name: player.displayName || (player.userId === activeUserId && playerName ? playerName : `Phone ${index + 1}`) }));
-  const activeIsHost = isHost;
+  // Keep the creator on the host screen even while a socket reconnect is
+  // catching up with the server's room state.
+  const activeIsHost = isHost || (createdRoomCode !== null && createdRoomCode === roomCode);
 
   const localStatus = isLifted ? 'PHONE LIFTED' : isStackVerified ? 'STACK VERIFIED' : isFaceDown ? 'PHONE FACE DOWN' : 'LOBBY ACTIVE';
   const statusColor = isLifted ? '#FF6B6B' : isStackVerified ? '#76E5B1' : isFaceDown ? '#82A7FF' : '#F6C667';
@@ -106,8 +116,16 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onGameStarted, 
 
   if (isWaitingRoom) {
     const waitingPlayers = activePlayers.map(({ userId, name }) => ({ userId, name }));
-    if (isHost) return <HostWaitingScreen error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} onStart={handleStartSession} players={waitingPlayers} />;
-    return <LobbyWaitingScreen currentUserId={activeUserId} players={waitingPlayers} />;
+    if (activeIsHost) return <HostWaitingScreen error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} lobbyCode={activeRoomCode ?? ''} onStart={handleStartSession} players={waitingPlayers} />;
+    return <LobbyWaitingScreen currentUserId={activeUserId} lobbyCode={activeRoomCode ?? ''} players={waitingPlayers} />;
+  }
+
+  if (isChoosingDifficulty) {
+    return <GenerateLobbyCodeScreen isLoading={isJoining} onGenerate={handleCreateRoom} />;
+  }
+
+  if (!activeRoomCode) {
+    return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={handleBeginCreate} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} />;
   }
 
   return <SafeAreaView style={[styles.safeArea, isBrowserSimulator && styles.webCanvas]}><StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" /><ScrollView style={styles.scroll} contentContainerStyle={[styles.container, isBrowserSimulator && styles.phoneFrame]} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

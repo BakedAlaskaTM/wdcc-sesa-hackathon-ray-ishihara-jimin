@@ -39,7 +39,7 @@ export function PhoneUsageBillScreen({ userId, roomCode: initialRoomCode }: Prop
   }, [codeInput, joinRoom]);
 
   return (
-    <SafeAreaView style={[styles.safeArea, isWeb && styles.webCanvas]}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" />
       <ScrollView contentContainerStyle={[styles.screen, isWeb && styles.phoneFrame]} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>

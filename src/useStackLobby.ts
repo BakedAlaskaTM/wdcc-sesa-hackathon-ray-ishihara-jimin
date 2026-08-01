@@ -10,6 +10,8 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
   const generatedUserId = useRef(`player-${Math.random().toString(36).slice(2, 10)}`);
   const activeUserId = userId ?? generatedUserId.current;
   const socketRef = useRef<Socket | null>(null);
+  const roomCodeRef = useRef<string | null>(initialRoomCode ?? null);
+  const displayNameRef = useRef<string | undefined>(undefined);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [isHost, setIsHost] = useState(false);
   const [playersArray, setPlayersArray] = useState<StackPlayer[]>([]);
@@ -18,6 +20,7 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
   const [isSessionStarted, setIsSessionStarted] = useState(false);
 
   const applyRoomState = useCallback((state: RoomState) => {
+    roomCodeRef.current = state.roomCode;
     setRoomCode(state.roomCode);
     setIsHost(state.hostUserId === activeUserId);
     setPlayersArray(state.players);
@@ -33,14 +36,18 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     socket.on('ALL_STACKED_READY', () => setIsAllReady(true));
     socket.on('STACK_VERIFIED', () => setIsStackVerified(true));
     socket.on('SESSION_STARTED', () => setIsSessionStarted(true));
-    if (initialRoomCode) {
-      socket.on('connect', () => {
-        socket.timeout(5_000).emit('JOIN_ROOM', { roomCode: initialRoomCode, userId: activeUserId }, (_error: Error | null, response: RoomResponse) => {
-          if (response?.ok && response.roomCode) applyRoomState(response as RoomState);
-        });
+    // Socket.IO can reconnect after a device briefly loses Wi-Fi. Rejoin the
+    // same room so every phone receives the shared player list again.
+    const rejoinRoom = () => {
+      const savedRoomCode = roomCodeRef.current ?? initialRoomCode;
+      if (!savedRoomCode) return;
+      socket.timeout(5_000).emit('JOIN_ROOM', { roomCode: savedRoomCode, userId: activeUserId, displayName: displayNameRef.current }, (_error: Error | null, response: RoomResponse) => {
+        if (response?.ok && response.roomCode) applyRoomState(response as RoomState);
       });
-    }
+    };
+    socket.on('connect', rejoinRoom);
     return () => {
+      socket.off('connect', rejoinRoom);
       socket.emit('LEAVE_ROOM');
       socket.disconnect();
       socketRef.current = null;
@@ -84,6 +91,7 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
   }, [activeUserId, applyRoomState, emitWithAck]);
 
   const joinRoom = useCallback(async (code: string, displayName?: string) => {
+    displayNameRef.current = displayName;
     const response = await emitWithAck<RoomResponse>('JOIN_ROOM', { roomCode: code, userId: activeUserId, displayName });
     if (!response.ok || !response.roomCode) throw new Error(response.error ?? 'Could not join room.');
     applyRoomState(response as RoomState);

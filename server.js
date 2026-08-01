@@ -43,7 +43,8 @@ function removePlayer(socket) {
   if (room?.players.get(userId)?.socketId === socket.id) {
     room.players.delete(userId);
     rebalanceBill(room);
-    if (room.hostUserId === userId) room.hostUserId = room.players.keys().next().value || '';
+    // The lobby creator remains the leader through short disconnects/rejoins,
+    // so they do not lose the ability to start the session.
     // Keep an empty room while clients move from the lobby into the bill screen.
     if (room.players.size > 0) broadcastRoomState(roomCode);
   }
@@ -58,6 +59,16 @@ function cleanDisplayName(displayName) {
 }
 
 function addPlayer(socket, roomCode, userId, displayName) {
+  const existingRoom = rooms.get(roomCode);
+  const existingPlayer = existingRoom?.players.get(userId);
+  // The host first creates a room, then submits their name. Treat that second
+  // join as an in-place profile update so host ownership is never disturbed.
+  if (existingPlayer?.socketId === socket.id) {
+    if (displayName) existingPlayer.displayName = cleanDisplayName(displayName);
+    socket.join(roomCode);
+    broadcastRoomState(roomCode);
+    return;
+  }
   removePlayer(socket);
   const room = rooms.get(roomCode);
   room.players.set(userId, { userId, displayName: cleanDisplayName(displayName), socketId: socket.id, isReadyOnStack: false, billPercent: 0 });
