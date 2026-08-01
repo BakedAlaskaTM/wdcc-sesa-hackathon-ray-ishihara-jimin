@@ -22,6 +22,8 @@ function roomState(roomCode) {
     hostUserId: room.hostUserId,
     stackVerified: room.stackVerified,
     sessionStarted: room.sessionStarted,
+    sessionEnded: room.sessionEnded,
+    finalPlayers: room.finalPlayers,
     players: [...room.players.values()].map(({ userId, displayName, isReadyOnStack, billPercent }) => ({ userId, displayName, isReadyOnStack, billPercent })),
   };
 }
@@ -89,7 +91,7 @@ io.on('connection', (socket) => {
   socket.on('CREATE_ROOM', ({ userId, displayName }, acknowledge = () => {}) => {
     if (!userId) return acknowledge({ ok: false, error: 'userId is required.' });
     const roomCode = makeRoomCode();
-    rooms.set(roomCode, { hostUserId: userId, players: new Map(), stackVerified: false, sessionStarted: false });
+    rooms.set(roomCode, { hostUserId: userId, players: new Map(), stackVerified: false, sessionStarted: false, sessionEnded: false, finalPlayers: null });
     addPlayer(socket, roomCode, userId, displayName);
     acknowledge({ ok: true, ...roomState(roomCode) });
   });
@@ -116,9 +118,23 @@ io.on('connection', (socket) => {
     if (!room || !player || player.socketId !== socket.id) return acknowledge({ ok: false, error: 'You are not a player in this room.' });
     if (room.hostUserId !== userId) return acknowledge({ ok: false, error: 'Only the host can start the session.' });
     room.sessionStarted = true;
+    room.sessionEnded = false;
+    room.finalPlayers = null;
     io.to(roomCode).emit('SESSION_STARTED');
     broadcastRoomState(roomCode);
     acknowledge({ ok: true });
+  });
+
+  socket.on('END_SESSION', ({ roomCode, userId }, acknowledge = () => {}) => {
+    const room = rooms.get(roomCode);
+    const player = room?.players.get(userId);
+    if (!room || !player || player.socketId !== socket.id) return acknowledge({ ok: false, error: 'You are not a player in this room.' });
+    if (room.hostUserId !== userId) return acknowledge({ ok: false, error: 'Only the host can end the session.' });
+    room.sessionEnded = true;
+    room.finalPlayers = [...room.players.values()].map(({ userId: id, displayName, billPercent }) => ({ userId: id, displayName, billPercent }));
+    io.to(roomCode).emit('SESSION_ENDED', { players: room.finalPlayers });
+    broadcastRoomState(roomCode);
+    acknowledge({ ok: true, players: room.finalPlayers });
   });
 
   socket.on('UPDATE_STATUS', ({ roomCode, userId, isReadyOnStack }, acknowledge = () => {}) => {
@@ -153,6 +169,7 @@ io.on('connection', (socket) => {
     if (!room || !activePlayer || activePlayer.socketId !== socket.id) {
       return acknowledge({ ok: false, error: 'You are not a player in this room.' });
     }
+    if (room.sessionEnded) return acknowledge({ ok: false, error: 'This session has ended.' });
     const others = [...room.players.values()].filter((player) => player.userId !== userId);
     const available = Math.max(0, 100 - activePlayer.billPercent);
     const gain = Math.min(1, available);

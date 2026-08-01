@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
 export type StackPlayer = { userId: string; displayName: string; isReadyOnStack: boolean; billPercent: number };
-type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean };
+export type FinalBillPlayer = Pick<StackPlayer, 'userId' | 'displayName' | 'billPercent'>;
+type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean; sessionEnded: boolean; finalPlayers: FinalBillPlayer[] | null };
 type LobbyResponse = { ok: true; error?: never } | { ok: false; error: string };
 type RoomResponse = LobbyResponse & Partial<RoomState>;
 
@@ -18,6 +19,8 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
   const [isAllReady, setIsAllReady] = useState(false);
   const [isStackVerified, setIsStackVerified] = useState(false);
   const [isSessionStarted, setIsSessionStarted] = useState(false);
+  const [isSessionEnded, setIsSessionEnded] = useState(false);
+  const [finalPlayers, setFinalPlayers] = useState<FinalBillPlayer[]>([]);
 
   const applyRoomState = useCallback((state: RoomState) => {
     roomCodeRef.current = state.roomCode;
@@ -27,6 +30,8 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     setIsAllReady(state.players.length > 0 && state.players.every((player) => player.isReadyOnStack));
     setIsStackVerified(state.stackVerified);
     setIsSessionStarted(Boolean(state.sessionStarted));
+    setIsSessionEnded(Boolean(state.sessionEnded));
+    setFinalPlayers(state.finalPlayers ?? []);
   }, [activeUserId]);
 
   useEffect(() => {
@@ -36,6 +41,10 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     socket.on('ALL_STACKED_READY', () => setIsAllReady(true));
     socket.on('STACK_VERIFIED', () => setIsStackVerified(true));
     socket.on('SESSION_STARTED', () => setIsSessionStarted(true));
+    socket.on('SESSION_ENDED', ({ players }: { players: FinalBillPlayer[] }) => {
+      setFinalPlayers(players);
+      setIsSessionEnded(true);
+    });
     // Socket.IO can reconnect after a device briefly loses Wi-Fi. Rejoin the
     // same room so every phone receives the shared player list again.
     const rejoinRoom = () => {
@@ -132,6 +141,12 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     if (!response.ok) throw new Error(response.error);
   }, [activeUserId, emitWithAck, roomCode]);
 
+  const endSession = useCallback(async () => {
+    if (!roomCode) throw new Error('Join a room before ending the session.');
+    const response = await emitWithAck<LobbyResponse>('END_SESSION', { roomCode, userId: activeUserId });
+    if (!response.ok) throw new Error(response.error);
+  }, [activeUserId, emitWithAck, roomCode]);
+
   const leaveRoom = useCallback(() => {
     socketRef.current?.emit('LEAVE_ROOM');
     roomCodeRef.current = null;
@@ -141,7 +156,9 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     setIsAllReady(false);
     setIsStackVerified(false);
     setIsSessionStarted(false);
+    setIsSessionEnded(false);
+    setFinalPlayers([]);
   }, []);
 
-  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, createRoom, joinRoom, updateDisplayName, startSession, leaveRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
+  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, isSessionEnded, finalPlayers, createRoom, joinRoom, updateDisplayName, startSession, endSession, leaveRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
 }

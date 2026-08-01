@@ -10,12 +10,19 @@ export type PhoneUsageBillState = {
   resetBill: () => void;
 };
 
-type Options = { simulatedReading?: AccelerometerMeasurement | null };
+type Options = {
+  simulatedReading?: AccelerometerMeasurement | null;
+  /** Minimum absolute Z gravity for a phone to count as flat. */
+  orientationThreshold?: number;
+  /** Total G-force that counts as an impact/shockwave. */
+  shockwaveThreshold?: number;
+  /** Minimum reading-to-reading change that counts as movement. */
+  motionDeltaThreshold?: number;
+  /** How long movement keeps the phone marked as in use. */
+  recentMotionMs?: number;
+};
 
 const UPDATE_INTERVAL_MS = 20;
-const TILTED_Z_LIMIT = 0.82;
-const MOTION_DELTA_G = 0.045;
-const RECENT_MOTION_MS = 2000;
 const INITIAL_BILL_PERCENT = 20;
 
 /**
@@ -23,7 +30,7 @@ const INITIAL_BILL_PERCENT = 20;
  * A flat, still phone has gravity almost entirely on Z; a tilted or recently moved
  * phone is treated as in-hand. Accelerometers cannot detect screen touches directly.
  */
-export function usePhoneUsageBill({ simulatedReading = null }: Options = {}): PhoneUsageBillState {
+export function usePhoneUsageBill({ simulatedReading = null, orientationThreshold = 0.82, shockwaveThreshold = 2.2, motionDeltaThreshold = 0.045, recentMotionMs = 2000 }: Options = {}): PhoneUsageBillState {
   const [isUsingPhone, setIsUsingPhone] = useState(false);
   const [billPercent, setBillPercent] = useState(INITIAL_BILL_PERCENT);
   const [activeSeconds, setActiveSeconds] = useState(0);
@@ -36,14 +43,18 @@ export function usePhoneUsageBill({ simulatedReading = null }: Options = {}): Ph
     if (previous) {
       // Change in the gravity vector indicates the phone was moved in the user's hand.
       const delta = Math.hypot(x - previous.x, y - previous.y, z - previous.z);
-      if (delta >= MOTION_DELTA_G) lastMotionTimeRef.current = now;
+      if (delta >= motionDeltaThreshold) lastMotionTimeRef.current = now;
     }
     lastReadingRef.current = { x, y, z, timestamp: now };
 
-    const isTilted = Math.abs(z) < TILTED_Z_LIMIT;
-    const recentlyMoved = now - lastMotionTimeRef.current < RECENT_MOTION_MS;
+    // Gravity close to 1g on Z means the phone is flat; a high total vector
+    // magnitude is treated as a physical impact/shockwave.
+    const magnitude = Math.hypot(x, y, z);
+    if (magnitude >= shockwaveThreshold) lastMotionTimeRef.current = now;
+    const isTilted = Math.abs(z) < orientationThreshold;
+    const recentlyMoved = now - lastMotionTimeRef.current < recentMotionMs;
     setIsUsingPhone(isTilted || recentlyMoved);
-  }, []);
+  }, [motionDeltaThreshold, orientationThreshold, recentMotionMs, shockwaveThreshold]);
 
   useEffect(() => {
     if (simulatedReading) {
