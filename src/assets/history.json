@@ -13,7 +13,7 @@
   },
   {
     "pos": "-36.8511355, 174.7662312",
-    "id": "devin",
+    "id": "bums",
     "name": "Bums",
     "lastSession": "13/07, 6:15 PM",
     "duration": "65 min",
@@ -25,8 +25,8 @@
   },
   {
     "pos": "-36.853167, 174.769995",
-    "id": "nikhil",
-    "name": "Nikhil",
+    "id": "engineering",
+    "name": "Engineering",
     "lastSession": "20/07, 8:10 PM",
     "duration": "90 min",
     "members": [
@@ -38,8 +38,8 @@
   },
   {
     "pos": "-36.845808, 174.766968",
-    "id": "simon",
-    "name": "Simon",
+    "id": "engsci",
+    "name": "Engsci #1",
     "lastSession": "Last Tuesday, 1:05 PM",
     "duration": "30 min",
     "members": [
@@ -50,9 +50,9 @@
   },
   {
     "pos": "-36.808657, 174.751047",
-    "id": "nicole",
-    "name": "Nicole",
-    "lastSession": "Last , 7:45 PM",
+    "id": "intoxication",
+    "name": "Intoxication",
+    "lastSession": "Last Monday, 7:45 PM",
     "duration": "50 min",
     "members": [
       { "id": "1", "name": "Nicole", "percentage": 60, "color": "#F0A35E" },
@@ -64,7 +64,7 @@
     "pos": "-36.8492791, 174.7601634",
     "id": "richard",
     "name": "Richard",
-    "lastSession": ", 6:30 PM",
+    "lastSession": "01/07, 6:30 PM",
     "duration": "110 min",
     "members": [
       { "id": "1", "name": "Richard", "percentage": 45, "color": "#E9C46A" },

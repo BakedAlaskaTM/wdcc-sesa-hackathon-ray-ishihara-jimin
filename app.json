@@ -13,8 +13,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.raygroup.phonestackdetector",
       "infoPlist": {
-        "NSMotionUsageDescription": "Motion data is used to detect when a phone is placed face-down, lifted, or receives an impact."
+        "NSMotionUsageDescription": "Motion data is used to detect when a phone is placed face-down, lifted, or receives an impact.",
+        "NSLocationWhenInUseUsageDescription": "Your location is used to centre the session map around you."
       }
-    }
+    },
+    "plugins": ["expo-location"]
   }
 }
