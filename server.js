@@ -21,8 +21,14 @@ function roomState(roomCode) {
     roomCode,
     hostUserId: room.hostUserId,
     stackVerified: room.stackVerified,
-    players: [...room.players.values()].map(({ userId, isReadyOnStack }) => ({ userId, isReadyOnStack })),
+    players: [...room.players.values()].map(({ userId, isReadyOnStack, billPercent }) => ({ userId, isReadyOnStack, billPercent })),
   };
+}
+
+function rebalanceBill(room) {
+  const players = [...room.players.values()];
+  const equalShare = players.length ? 100 / players.length : 0;
+  players.forEach((player) => { player.billPercent = equalShare; });
 }
 
 function broadcastRoomState(roomCode) {
@@ -35,6 +41,7 @@ function removePlayer(socket) {
   const room = rooms.get(roomCode);
   if (room?.players.get(userId)?.socketId === socket.id) {
     room.players.delete(userId);
+    rebalanceBill(room);
     if (room.hostUserId === userId) room.hostUserId = room.players.keys().next().value || '';
     if (room.players.size === 0) rooms.delete(roomCode);
     else broadcastRoomState(roomCode);
@@ -47,7 +54,8 @@ function removePlayer(socket) {
 function addPlayer(socket, roomCode, userId) {
   removePlayer(socket);
   const room = rooms.get(roomCode);
-  room.players.set(userId, { userId, socketId: socket.id, isReadyOnStack: false });
+  room.players.set(userId, { userId, socketId: socket.id, isReadyOnStack: false, billPercent: 0 });
+  rebalanceBill(room);
   socket.join(roomCode);
   socket.data.roomCode = roomCode;
   socket.data.userId = userId;
@@ -96,6 +104,24 @@ io.on('connection', (socket) => {
     }
     room.stackVerified = true;
     io.to(roomCode).emit('STACK_VERIFIED', { userId, timestamp });
+    broadcastRoomState(roomCode);
+    acknowledge({ ok: true });
+  });
+
+  socket.on('PHONE_USAGE_TICK', ({ roomCode, userId }, acknowledge = () => {}) => {
+    const room = rooms.get(roomCode);
+    const activePlayer = room?.players.get(userId);
+    if (!room || !activePlayer || activePlayer.socketId !== socket.id) {
+      return acknowledge({ ok: false, error: 'You are not a player in this room.' });
+    }
+    const others = [...room.players.values()].filter((player) => player.userId !== userId);
+    const available = Math.max(0, 100 - activePlayer.billPercent);
+    const gain = Math.min(1, available);
+    const othersTotal = others.reduce((total, player) => total + player.billPercent, 0);
+    activePlayer.billPercent += gain;
+    if (othersTotal > 0) {
+      others.forEach((player) => { player.billPercent -= gain * (player.billPercent / othersTotal); });
+    }
     broadcastRoomState(roomCode);
     acknowledge({ ok: true });
   });

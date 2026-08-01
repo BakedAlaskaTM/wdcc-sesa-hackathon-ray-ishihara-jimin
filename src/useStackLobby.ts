@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
-export type StackPlayer = { userId: string; isReadyOnStack: boolean };
+export type StackPlayer = { userId: string; isReadyOnStack: boolean; billPercent: number };
 type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean };
 type LobbyResponse = { ok: true; error?: never } | { ok: false; error: string };
 type RoomResponse = LobbyResponse & Partial<RoomState>;
@@ -77,5 +77,11 @@ export function useStackLobby(serverUrl: string, userId?: string) {
     if (!response.ok) throw new Error(response.error);
   }, [activeUserId, emitWithAck, roomCode]);
 
-  return { roomCode, isHost, playersArray, isAllReady, isStackVerified, createRoom, joinRoom, updateReadyState, sendShockwaveTimestamp };
+  const reportPhoneUse = useCallback(async () => {
+    if (!roomCode) throw new Error('Join a room before reporting phone use.');
+    const response = await emitWithAck<LobbyResponse>('PHONE_USAGE_TICK', { roomCode, userId: activeUserId });
+    if (!response.ok) throw new Error(response.error);
+  }, [activeUserId, emitWithAck, roomCode]);
+
+  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, createRoom, joinRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
 }
