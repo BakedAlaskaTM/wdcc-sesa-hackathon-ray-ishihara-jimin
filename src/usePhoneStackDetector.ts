@@ -1,4 +1,4 @@
-import { Accelerometer } from 'expo-sensors';
+import { Accelerometer, type AccelerometerMeasurement } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type FaceDownZDirection = 'positive' | 'negative' | 'either';
@@ -21,6 +21,8 @@ export type PhoneStackDetectorOptions = {
    * `either` is useful while calibrating across platforms and matches |Z| checks.
    */
   faceDownZDirection?: FaceDownZDirection;
+  /** Optional synthetic sample, useful for browser demos and automated tests. */
+  simulatedReading?: AccelerometerMeasurement | null;
 };
 
 export type PhoneStackDetectorState = {
@@ -47,6 +49,7 @@ export function usePhoneStackDetector(
     shockwaveThreshold = 2.2,
     shockwaveDebounceMs = 1000,
     faceDownZDirection = 'either',
+    simulatedReading = null,
   } = options;
 
   const [isFaceDown, setIsFaceDown] = useState(false);
@@ -70,10 +73,8 @@ export function usePhoneStackDetector(
     setLastShockwaveTime(null);
   }, []);
 
-  useEffect(() => {
-    Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
-
-    const subscription = Accelerometer.addListener(({ x, y, z }) => {
+  const processReading = useCallback(
+    ({ x, y, z }: AccelerometerMeasurement) => {
       // Resting gravity should sit on Z; X/Y near zero means the phone is flat.
       const horizontalIsFlat =
         Math.abs(x) <= horizontalGravityTolerance &&
@@ -110,15 +111,30 @@ export function usePhoneStackDetector(
         setLastShockwaveTime(timestamp);
         callbacksRef.current.onShockwave?.(timestamp);
       }
-    });
+    },
+    [
+      faceDownZDirection,
+      horizontalGravityTolerance,
+      shockwaveDebounceMs,
+      shockwaveThreshold,
+      zGravityThreshold,
+    ],
+  );
+
+  useEffect(() => {
+    // A supplied synthetic sample deliberately replaces hardware input.
+    if (simulatedReading) {
+      processReading(simulatedReading);
+      return;
+    }
+
+    Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
+    const subscription = Accelerometer.addListener(processReading);
 
     return () => subscription.remove();
   }, [
-    faceDownZDirection,
-    horizontalGravityTolerance,
-    shockwaveDebounceMs,
-    shockwaveThreshold,
-    zGravityThreshold,
+    processReading,
+    simulatedReading,
   ]);
 
   return { isFaceDown, isLifted, lastShockwaveTime, resetDetector };

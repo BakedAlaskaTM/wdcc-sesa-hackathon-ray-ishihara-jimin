@@ -1,5 +1,5 @@
-import { GroupScoreScreen } from './src/GroupScoreScreen';
+import { StackDetectorScreen } from './src/StackDetectorScreen';
 
 export default function App() {
-  return <GroupScoreScreen />;
+  return <StackDetectorScreen />;
 }
