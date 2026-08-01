@@ -30,12 +30,12 @@ export function GroupScoreScreen({ groupName = 'Ray', members = defaultMembers, 
         </Pressable>
         <View style={styles.groupDetails}>
           <Text style={styles.groupLabel}>GROUP</Text>
-          <Text style={styles.groupName}>{groupName}</Text>
+          <Text numberOfLines={1} style={styles.groupName}>{groupName}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Phone use scores</Text>
+        <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={styles.title}>Phone use scores</Text>
         <Text style={styles.subtitle}>Each member’s share of the group’s total lifted-phone time. Shares total 100%.</Text>
         <View style={styles.memberList}>
           {members.map((member) => <MemberScore key={member.id} member={member} />)}
@@ -50,7 +50,7 @@ function MemberScore({ member }: { member: GroupMember }) {
   return (
     <View style={styles.memberCard}>
       <View style={styles.memberHeader}>
-        <Text style={styles.memberName}>{member.name}</Text>
+        <Text numberOfLines={1} style={styles.memberName}>{member.name}</Text>
         <Text style={styles.percentage}>{percentage}%</Text>
       </View>
       <View style={styles.barTrack}>
@@ -62,22 +62,22 @@ function MemberScore({ member }: { member: GroupMember }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
-  topBar: { minHeight: 72, paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#FFF', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DCE1E8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  backButton: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },
+  topBar: { minHeight: 72, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFF', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DCE1E8', flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'space-between' },
+  backButton: { flexDirection: 'row', alignItems: 'center', minHeight: 44, flexShrink: 0 },
   pressed: { opacity: 0.55 },
   backIcon: { color: '#1D2733', fontSize: 34, lineHeight: 34, marginRight: 5 },
   backText: { color: '#1D2733', fontSize: 16, fontWeight: '600' },
-  groupDetails: { alignItems: 'flex-end' },
+  groupDetails: { alignItems: 'flex-end', flex: 1, minWidth: 0 },
   groupLabel: { color: '#7C8795', fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
-  groupName: { color: '#1D2733', fontSize: 20, fontWeight: '700' },
-  content: { paddingHorizontal: 20, paddingTop: 32, paddingBottom: 40 },
+  groupName: { color: '#1D2733', flexShrink: 1, fontSize: 20, fontWeight: '700', maxWidth: '100%' },
+  content: { paddingHorizontal: 16, paddingTop: 28, paddingBottom: 40 },
   title: { color: '#1D2733', fontSize: 28, fontWeight: '700' },
   subtitle: { color: '#687382', fontSize: 15, lineHeight: 22, marginTop: 8 },
   memberList: { marginTop: 28, gap: 14 },
-  memberCard: { padding: 18, borderRadius: 14, backgroundColor: '#FFF', borderWidth: StyleSheet.hairlineWidth, borderColor: '#E2E6EC' },
-  memberHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13 },
-  memberName: { color: '#222C38', fontSize: 17, fontWeight: '600' },
-  percentage: { color: '#222C38', fontSize: 17, fontVariant: ['tabular-nums'], fontWeight: '700' },
+  memberCard: { padding: 16, borderRadius: 14, backgroundColor: '#FFF', borderWidth: StyleSheet.hairlineWidth, borderColor: '#E2E6EC' },
+  memberHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'space-between', marginBottom: 13 },
+  memberName: { color: '#222C38', flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600' },
+  percentage: { color: '#222C38', flexShrink: 0, fontSize: 17, fontVariant: ['tabular-nums'], fontWeight: '700' },
   barTrack: { height: 14, width: '100%', overflow: 'hidden', borderRadius: 7, backgroundColor: '#E9EDF2' },
   barFill: { height: '100%', borderRadius: 7 },
 });
