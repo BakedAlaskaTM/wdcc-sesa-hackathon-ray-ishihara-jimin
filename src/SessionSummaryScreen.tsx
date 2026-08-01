@@ -40,6 +40,7 @@ export function SessionSummaryScreen({ activityTimeline = [], onHome, paymentUse
   const [hostUserId, setHostUserId] = useState<string | null>(null);
   const [sharedMealTotalCents, setSharedMealTotalCents] = useState<number | null>(null);
   const [paidUserIds, setPaidUserIds] = useState<string[]>([]);
+  const [activitySecondsByUser, setActivitySecondsByUser] = useState<Record<string, number>>({});
   const receiptRef = useRef<View>(null);
   const enteredCost = Number.parseFloat(costInput) || 0;
   const cost = roomCode && sharedMealTotalCents !== null ? sharedMealTotalCents / 100 : enteredCost;
@@ -51,6 +52,9 @@ export function SessionSummaryScreen({ activityTimeline = [], onHome, paymentUse
   const isHost = !roomCode || hostUserId === paymentUserId;
   const hasPaidPlayer = paidUserIds.length > 0;
   const isCurrentPlayerPaid = Boolean(payingPlayer && (paidUserIds.includes(payingPlayer.userId) || paymentStatus === 'paid'));
+  const funStats = roomCode
+    ? sorted.filter((player) => (activitySecondsByUser[player.userId] ?? 0) > 0).sort((a, b) => (activitySecondsByUser[b.userId] ?? 0) - (activitySecondsByUser[a.userId] ?? 0)).slice(0, 3)
+    : sorted.slice(0, 3);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -58,11 +62,12 @@ export function SessionSummaryScreen({ activityTimeline = [], onHome, paymentUse
     const loadSummary = async () => {
       try {
         const response = await fetch(`${getLobbyServerUrl()}/session/summary?roomCode=${encodeURIComponent(roomCode)}`);
-        const summary = await response.json() as { hostUserId?: string; mealTotalCents?: number | null; paidUserIds?: string[] };
+        const summary = await response.json() as { hostUserId?: string; mealTotalCents?: number | null; paidUserIds?: string[]; activitySecondsByUser?: Record<string, number> };
         if (!mounted || !response.ok) return;
         setHostUserId(summary.hostUserId ?? null);
         setSharedMealTotalCents(summary.mealTotalCents ?? null);
         setPaidUserIds(summary.paidUserIds ?? []);
+        setActivitySecondsByUser(summary.activitySecondsByUser ?? {});
         if (summary.mealTotalCents !== null && summary.mealTotalCents !== undefined) setShowReceipt(true);
       } catch { /* Keep the local summary usable while the lobby server reconnects. */ }
     };
@@ -275,6 +280,17 @@ export function SessionSummaryScreen({ activityTimeline = [], onHome, paymentUse
           </View>
           <View style={styles.timelineLabels}><Text style={styles.timelineLabel}>{timelineLabels?.start ?? 'START'}</Text><Text style={styles.timelineLabel}>{timelineLabels?.end ?? 'END'}</Text></View>
         </View>
+        <View style={styles.funStatsCard}>
+          <Text style={styles.timelineTitle}>PHONE MOMENTS</Text>
+          {funStats.map((player, index) => {
+            const seconds = roomCode ? activitySecondsByUser[player.userId] ?? 0 : [960, 720, 420][index] ?? 180;
+            const duration = seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`;
+            const equalShare = players.length ? cost / players.length : 0;
+            const extraCost = Math.max(0, cost * player.billPercent / 100 - equalShare);
+            return <Text key={player.userId} style={styles.funStatText}><Text style={styles.funStatName}>{player.displayName}</Text> used their phone for {duration}{extraCost > 0.005 ? <>, costing them an extra <Text style={styles.funStatAmount}>${extraCost.toFixed(2)}</Text>.</> : '.'}</Text>;
+          })}
+          {!funStats.length ? <Text style={styles.funStatText}>No phone-use moments were recorded this session.</Text> : null}
+        </View>
         <Pressable onPress={onHome} style={styles.homeButton}><Text style={styles.homeText}>RETURN HOME</Text></Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -339,6 +355,10 @@ const styles = StyleSheet.create({
   timelineSegment: { flex: 1 },
   timelineLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -5 },
   timelineLabel: { color: 'rgba(21,18,31,0.58)', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  funStatsCard: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, gap: 10, padding: 15 },
+  funStatText: { color: 'rgba(21,18,31,0.72)', fontSize: 13, fontWeight: '600', lineHeight: 19 },
+  funStatName: { color: '#15121F', fontWeight: '800' },
+  funStatAmount: { color: '#3E4AA0', fontWeight: '800' },
   homeButton: { alignItems: 'center', backgroundColor: '#15121F', borderColor: '#15121F', borderRadius: 20, borderWidth: 3, justifyContent: 'center', marginTop: 'auto', minHeight: 62 },
   homeText: { color: '#F5EFDA', fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
 });

@@ -117,10 +117,15 @@ function hasPaidPlayer(room) {
 function summaryState(roomCode) {
   const room = rooms.get(String(roomCode));
   if (!room?.sessionEnded || !room.finalPlayers) return null;
+  const activitySecondsByUser = Object.fromEntries(room.finalPlayers.map((player) => [
+    player.userId,
+    [...room.activityBySecond.values()].filter((activePlayers) => activePlayers.has(player.userId)).length,
+  ]));
   return {
     hostUserId: room.hostUserId,
     mealTotalCents: room.mealTotalCents,
     paidUserIds: [...room.payments.entries()].filter(([, payment]) => payment.status === 'paid').map(([userId]) => userId),
+    activitySecondsByUser,
   };
 }
 
