@@ -23,7 +23,7 @@ export function PhoneUsageBillScreen({ displayName, lobbyName: initialLobbyName,
   const [motionDeltaThreshold, setMotionDeltaThreshold] = useState(0.045);
   const [recentMotionMs, setRecentMotionMs] = useState(2000);
   const { activeUserId, roomCode, lobbyName, isHost, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, endSession, joinRoom, playersArray, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode, displayName);
-  const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading, orientationThreshold, shockwaveThreshold, motionDeltaThreshold, recentMotionMs });
+  const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading, orientationThreshold, motionDeltaThreshold, recentMotionMs });
   const groupPercent = playersArray.find((player) => player.userId === activeUserId)?.billPercent;
   const displayedPercent = roomCode && groupPercent !== undefined ? groupPercent : billPercent;
   const color = isUsingPhone ? '#FF8A65' : '#60D9A2';
