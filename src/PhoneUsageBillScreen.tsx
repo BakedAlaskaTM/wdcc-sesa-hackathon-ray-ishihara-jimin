@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AccelerometerMeasurement } from 'expo-sensors';
 import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { usePhoneUsageBill } from './usePhoneUsageBill';
@@ -10,6 +10,7 @@ type Props = { displayName?: string; lobbyName?: string; userId?: string; roomCo
 const LOBBY_SERVER_URL = getLobbyServerUrl();
 
 export function PhoneUsageBillScreen({ displayName, lobbyName: initialLobbyName, userId, roomCode: initialRoomCode, onSessionEnded }: Props) {
+  const hasReportedSessionEndRef = useRef(false);
   const isWeb = Platform.OS === 'web';
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isWeb ? sample(0, 0, -1) : null,
@@ -35,7 +36,13 @@ export function PhoneUsageBillScreen({ displayName, lobbyName: initialLobbyName,
   }, [isUsingPhone, reportPhoneUse, roomCode]);
 
   useEffect(() => {
-    if (isSessionEnded && finalPlayers.length) onSessionEnded?.(finalPlayers, finalActivityTimeline, finalTimelineRange);
+    if (!isSessionEnded) {
+      hasReportedSessionEndRef.current = false;
+      return;
+    }
+    if (!finalPlayers.length || hasReportedSessionEndRef.current) return;
+    hasReportedSessionEndRef.current = true;
+    onSessionEnded?.(finalPlayers, finalActivityTimeline, finalTimelineRange);
   }, [finalActivityTimeline, finalPlayers, finalTimelineRange, isSessionEnded, onSessionEnded]);
 
   const createGroup = useCallback(async () => {
@@ -57,7 +64,7 @@ export function PhoneUsageBillScreen({ displayName, lobbyName: initialLobbyName,
       <StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" />
       <ScrollView contentContainerStyle={[styles.screen, isWeb && styles.phoneFrame]} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
-          <Text style={styles.eyebrow}>PHONE TIME</Text>
+          <Text style={styles.eyebrow}>FRIEND TIME</Text>
         </View>
         <Text numberOfLines={2} style={styles.title}>{lobbyName || initialLobbyName || 'Your lobby'}</Text>
         <Text style={styles.subtitle}>your share of the <Text style={styles.titleAccent}>bill</Text></Text>

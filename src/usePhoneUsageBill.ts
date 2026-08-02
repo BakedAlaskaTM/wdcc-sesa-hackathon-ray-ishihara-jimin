@@ -18,14 +18,16 @@ type Options = {
 
 const UPDATE_INTERVAL_MS = 20;
 const INITIAL_BILL_PERCENT = 20;
-const MOVEMENT_CONFIRMATION_MS = 1000;
-const STILLNESS_GRACE_MS = 180;
+const MOVEMENT_CONFIRMATION_MS = 250;
+const STILLNESS_GRACE_MS = 500;
+const HORIZONTAL_MOTION_THRESHOLD = 0.1;
 
 /**
- * A player is using their phone only after touching the app and then moving the
- * phone continuously for one second. The moment the phone is still, billing stops.
+ * Screen interaction and accelerometer movement independently count as phone
+ * use. A brief pause between samples is tolerated so ordinary handling still
+ * registers reliably.
  */
-export function usePhoneUsageBill({ simulatedReading = null, motionDeltaThreshold = 0.012 }: Options = {}): PhoneUsageBillState {
+export function usePhoneUsageBill({ simulatedReading = null, motionDeltaThreshold = 0.1 }: Options = {}): PhoneUsageBillState {
   const [isUsingPhone, setIsUsingPhone] = useState(false);
   const [billPercent, setBillPercent] = useState(INITIAL_BILL_PERCENT);
   const [activeSeconds, setActiveSeconds] = useState(0);
@@ -36,6 +38,8 @@ export function usePhoneUsageBill({ simulatedReading = null, motionDeltaThreshol
 
   const recordScreenInteraction = useCallback(() => {
     interactionArmedRef.current = true;
+    lastMovementAtRef.current = Date.now();
+    setIsUsingPhone(true);
   }, []);
 
   const processReading = useCallback(({ x, y, z }: AccelerometerMeasurement) => {
@@ -44,16 +48,27 @@ export function usePhoneUsageBill({ simulatedReading = null, motionDeltaThreshol
     lastReadingRef.current = { x, y, z, timestamp: now };
     if (!previous) return;
 
-    const delta = Math.hypot(x - previous.x, y - previous.y, z - previous.z);
-    if (delta >= motionDeltaThreshold) {
+    const horizontalDelta = Math.hypot(x - previous.x, y - previous.y);
+    const delta = Math.hypot(horizontalDelta, z - previous.z);
+    const totalMovement = delta >= motionDeltaThreshold;
+    const horizontalMovement = horizontalDelta >= HORIZONTAL_MOTION_THRESHOLD;
+    if ((totalMovement || horizontalMovement) && movementStartedAtRef.current === null) {
+      movementStartedAtRef.current = now;
+    }
+    const sustainedMovement = movementStartedAtRef.current !== null
+      && now - movementStartedAtRef.current >= MOVEMENT_CONFIRMATION_MS;
+    if (totalMovement || horizontalMovement) {
       lastMovementAtRef.current = now;
-      if (movementStartedAtRef.current === null) movementStartedAtRef.current = now;
-      setIsUsingPhone(interactionArmedRef.current && now - movementStartedAtRef.current >= MOVEMENT_CONFIRMATION_MS);
+      // Each usage signal is independent. A screen interaction, total movement,
+      // horizontal movement, or confirmed sustained movement can mark it in use.
+      setIsUsingPhone(
+        interactionArmedRef.current || totalMovement || horizontalMovement || sustainedMovement,
+      );
       return;
     }
 
-    // Motion samples naturally fluctuate; only call the phone still after a short
-    // quiet window rather than resetting the one-second movement confirmation.
+    // Motion samples naturally fluctuate; only call the phone still after a
+    // quiet window rather than resetting movement confirmation immediately.
     if (now - lastMovementAtRef.current >= STILLNESS_GRACE_MS) {
       movementStartedAtRef.current = null;
       interactionArmedRef.current = false;

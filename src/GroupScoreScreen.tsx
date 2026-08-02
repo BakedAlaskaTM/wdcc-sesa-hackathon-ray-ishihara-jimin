@@ -53,7 +53,7 @@ function MemberScore({ member }: { member: GroupMember }) {
     <View style={styles.memberCard}>
       <View style={styles.memberHeader}>
         <Text numberOfLines={1} style={styles.memberName}>{member.name}</Text>
-        <Text style={styles.percentage}>{percentage}%</Text>
+        <Text style={styles.percentage}>{Math.round(percentage)}%</Text>
       </View>
       <View style={styles.barTrack}>
         <View style={[styles.barFill, { width: `${percentage}%`, backgroundColor: member.color }]} />

@@ -1,5 +1,7 @@
 import { type ReactNode, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Location from 'expo-location';
+import { PlusJakartaSans_400Regular, useFonts } from '@expo-google-fonts/plus-jakarta-sans';
 import { GroupScoreScreen } from './src/GroupScoreScreen';
 import { HistoryScreen, type GroupHistory } from './src/HistoryScreen';
 import { PhoneUsageBillScreen } from './src/PhoneUsageBillScreen';
@@ -18,8 +20,26 @@ type Screen = 'welcome' | 'profile' | 'lobby' | 'history' | 'map' | 'scores' | '
 const allHistory: GroupHistory[] = history;
 const historyForProfile = (profile: DemoProfile) => allHistory.filter((group) => group.members.some((member) => member.name === profile));
 const formatTimelineTime = (timestamp: number) => new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const getCurrentPositionString = async () => {
+  try {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== Location.PermissionStatus.GRANTED) return '';
+    const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    return `${location.coords.latitude}, ${location.coords.longitude}`;
+  } catch {
+    return '';
+  }
+};
+
+const globalTextStyle = { fontFamily: 'PlusJakartaSans_400Regular' };
+for (const component of [Text, TextInput]) {
+  const globalComponent = component as typeof component & { defaultProps?: { style?: unknown } };
+  globalComponent.defaultProps = globalComponent.defaultProps ?? {};
+  globalComponent.defaultProps.style = [globalTextStyle, globalComponent.defaultProps.style];
+}
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({ PlusJakartaSans_400Regular });
   const [screen, setScreen] = useState<Screen>('welcome');
   const [screenHistory, setScreenHistory] = useState<Screen[]>([]);
   const [profile, setProfile] = useState<DemoProfile | null>(null);
@@ -38,9 +58,11 @@ export default function App() {
   const goBack = () => { const previous = screenHistory.at(-1); if (!previous) return; setScreenHistory((history) => history.slice(0, -1)); setScreen(previous); };
   const returnHome = () => { setFinalPlayers([]); setActivityTimeline([]); setTimelineLabels(null); setGameRoomCode(undefined); setGamePlayerName(undefined); setGameLobbyName(undefined); setScreenHistory([]); setScreen('lobby'); };
 
+  if (!fontsLoaded && !fontError) return null;
+
   if (screen === 'welcome') return withAppMargins(<WelcomeScreen onStart={() => navigate('profile')} />);
   if (screen === 'profile') return withAppMargins(withBackButton(<ProfilePickerScreen onSelect={(selectedProfile) => { setProfile(selectedProfile); setSessionHistory(historyForProfile(selectedProfile)); navigate('lobby'); }} />, goBack));
-  if (screen === 'bill') return withAppMargins(<PhoneUsageBillScreen displayName={gamePlayerName} lobbyName={gameLobbyName} userId={playerId} roomCode={gameRoomCode} onSessionEnded={(players, timeline, timelineRange) => { setFinalPlayers(players); setActivityTimeline(timeline); setTimelineLabels(timelineRange ? { start: formatTimelineTime(timelineRange.startedAt), end: formatTimelineTime(timelineRange.endedAt) } : null); setSessionHistory((previous) => [{ id: `stack-${Date.now()}`, name: gameLobbyName || 'Untitled stack', lastSession: 'Just now', duration: 'This session', pos: '-36.8485, 174.7633', members: players.map((player, index) => ({ id: player.userId, name: player.displayName, percentage: player.billPercent, color: ['#5B7CFA', '#53B7A8', '#F0A35E', '#A978E8'][index % 4] })) }, ...previous]); navigate('summary'); }} />);
+  if (screen === 'bill') return withAppMargins(<PhoneUsageBillScreen displayName={gamePlayerName} lobbyName={gameLobbyName} userId={playerId} roomCode={gameRoomCode} onSessionEnded={async (players, timeline, timelineRange) => { const pos = await getCurrentPositionString(); setFinalPlayers(players); setActivityTimeline(timeline); setTimelineLabels(timelineRange ? { start: formatTimelineTime(timelineRange.startedAt), end: formatTimelineTime(timelineRange.endedAt) } : null); setSessionHistory((previous) => [{ id: `stack-${Date.now()}`, name: gameLobbyName || 'Untitled stack', lastSession: 'Just now', duration: 'This session', pos, profileName: profile ?? undefined, userDisplayName: gamePlayerName ?? players.find((player) => player.userId === playerId)?.displayName, members: players.map((player, index) => ({ id: player.userId, name: player.displayName, percentage: player.billPercent, color: ['#5B7CFA', '#53B7A8', '#F0A35E', '#A978E8'][index % 4] })) }, ...previous]); navigate('summary'); }} />);
   if (screen === 'summary') return withAppMargins(<SessionSummaryScreen activityTimeline={activityTimeline} lobbyName={gameLobbyName} onBack={goBack} onHome={returnHome} paymentUserId={playerId} players={finalPlayers} roomCode={gameRoomCode} timelineLabels={timelineLabels ?? undefined} />);
   if (screen === 'demoLobby') return withAppMargins(<DemoLobbyScreen onBack={goBack} onStart={() => navigate('demo')} />);
   if (screen === 'demo') return withAppMargins(withBackButton(<DemoBillScreen onHome={returnHome} onEnd={(players, timeline) => { setFinalPlayers(players); setActivityTimeline(timeline); setTimelineLabels({ start: '6:14 PM', end: '8:04 PM' }); navigate('summary'); }} />, goBack));
