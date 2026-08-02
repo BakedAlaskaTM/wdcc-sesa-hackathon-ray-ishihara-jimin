@@ -198,7 +198,7 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onBack,
       <StatusBar backgroundColor={showReceipt ? "#E7F4EA" : "#EFEAF9"} barStyle="dark-content" />
       {!showReceipt ? <Pressable accessibilityLabel="Go back to live bill" onPress={onBack} style={styles.backButton}><Text style={styles.backChevron}>‹</Text></Pressable> : null}
       <ScrollView contentContainerStyle={[styles.content, isWeb && styles.phoneFrame]} keyboardShouldPersistTaps="handled">
-        <Text style={styles.eyebrow}>{showReceipt ? 'PAYMENT RECEIPT' : "THAT'S A WRAP · YOUR CREW"}</Text>
+        {showReceipt ? <Text style={styles.eyebrow}>PAYMENT RECEIPT</Text> : null}
         <Text style={styles.title}>
           {showReceipt ? <>split the <Text style={styles.accent}>bill</Text></> : <>who <Text style={styles.accent}>caved?</Text></>}
         </Text>
@@ -206,8 +206,8 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onBack,
         {showReceipt ? (
           <>
             <View ref={receiptRef} collapsable={false} style={styles.receiptCapture}>
-              <Text style={styles.receiptBrand}>PHONE TIME</Text>
-              <Text style={styles.receiptHeading}>{lobbyName || 'Your crew'} · meal ${cost.toFixed(2)}</Text>
+
+
               <View style={styles.receiptDivider} />
               <View style={styles.card}>
                 {sorted.map((player) => {
@@ -277,7 +277,7 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onBack,
           <View style={styles.timeline}>
             {timelineBuckets.map((activePeople, index) => {
               const intensity = Math.min(1, activePeople / Math.max(1, players.length));
-              const color = activePeople === 0 ? '#86CBA3' : intensity >= 0.66 ? '#E76652' : '#F0908B';
+              const color = activePeople === 0 ? '#86CBA3' : intensity >= 0.75 ? '#B9433E' : intensity >= 0.5 ? '#D75D56' : '#F0908B';
               return <View key={index} style={[styles.timelineSegment, { backgroundColor: color }]} />;
             })}
           </View>
@@ -312,12 +312,12 @@ const styles = StyleSheet.create({
   receiptBrand: { color: '#2E2A3A', fontSize: 12, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
   receiptHeading: { color: 'rgba(46,42,58,.52)', fontSize: 11, fontWeight: '600', marginTop: -9, textAlign: 'center' }, receiptDivider: { borderStyle: 'dashed', borderTopColor: 'rgba(46,42,58,.3)', borderTopWidth: 2, marginVertical: 2 },
   card: { backgroundColor: '#FFFDF9', borderColor: '#2E2A3A', borderRadius: 24, borderWidth: 2, gap: 4, padding: 16 },
-  playerCard: { gap: 9, paddingBottom: 12, paddingTop: 5 },
-  winner: { backgroundColor: '#EAF5EE', borderColor: '#2E2A3A', borderRadius: 12, borderWidth: 2, marginHorizontal: -6, paddingHorizontal: 8, paddingTop: 8 },
+  playerCard: { backgroundColor: '#FDF3D6', borderRadius: 12, gap: 9, padding: 12 },
+  winner: { backgroundColor: '#FDF3D6', borderColor: '#2E2A3A', borderRadius: 8, borderWidth: 2, marginHorizontal: -6, paddingHorizontal: 8, paddingTop: 8 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   rank: { alignItems: 'center', backgroundColor: '#F0908B', borderColor: '#2E2A3A', borderRadius: 8, borderWidth: 2, color: '#2E2A3A', fontSize: 13, fontWeight: '800', height: 26, lineHeight: 22, overflow: 'hidden', textAlign: 'center', width: 26 },
   name: { color: '#2E2A3A', flex: 1, fontSize: 15, fontWeight: '800' },
-  percent: { color: '#2E2A3A', fontSize: 16, fontVariant: ['tabular-nums'], fontWeight: '800' },
+  percent: { backgroundColor: '#FDF3D6', borderRadius: 7, color: '#2E2A3A', fontSize: 16, fontVariant: ['tabular-nums'], fontWeight: '800', paddingHorizontal: 6, paddingVertical: 2 },
   winnerText: { color: '#2E2A3A' },
   barTrack: { backgroundColor: 'rgba(46,42,58,0.12)', borderColor: '#2E2A3A', borderRadius: 7, borderWidth: 1, height: 12, overflow: 'hidden' },
   bar: { backgroundColor: '#B79DDD', borderRadius: 6, height: '100%' },
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   disabledButton: { backgroundColor: 'rgba(21,18,31,0.15)' },
   disabledText: { color: 'rgba(21,18,31,0.4)' },
   receiptRow: { alignItems: 'center', borderBottomColor: 'rgba(46,42,58,.14)', borderBottomWidth: 1.5, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
-  youReceiptRow: { backgroundColor: '#EAF5EE', borderBottomColor: '#2E2A3A', borderBottomWidth: 2, borderColor: '#2E2A3A', borderRadius: 12, borderWidth: 2, marginHorizontal: -6, marginVertical: 4, paddingHorizontal: 9 },
+  youReceiptRow: { backgroundColor: '#EAF5EE', borderBottomColor: '#2E2A3A', borderBottomWidth: 2, borderColor: '#2E2A3A', borderRadius: 8, borderWidth: 2, marginHorizontal: -6, marginVertical: 4, paddingHorizontal: 9 },
   paidReceiptRow: { opacity: 0.58 },
   paidReceiptText: { color: '#38785D', textDecorationLine: 'line-through' },
   share: { color: 'rgba(21,18,31,0.6)', fontSize: 12, fontWeight: '700', marginTop: 2 },
@@ -358,8 +358,8 @@ const styles = StyleSheet.create({
   timelineCard: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, gap: 12, padding: 15 },
   timelineHeader: { gap: 3 },
   timelineTitle: { color: '#15121F', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  timeline: { borderRadius: 999, flexDirection: 'row', height: 14, overflow: 'hidden', width: '100%' },
-  timelineSegment: { flex: 1 },
+  timeline: { borderRadius: 8, flexDirection: 'row', height: 16, overflow: 'hidden', width: '100%' },
+  timelineSegment: { flex: 1, marginLeft: -1 },
   timelineLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -5 },
   timelineLabel: { color: 'rgba(21,18,31,0.58)', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
   funStatsCard: { alignItems: 'center', backgroundColor: '#FDF3D6', borderColor: '#2E2A3A', borderRadius: 18, borderWidth: 2, flexDirection: 'row', gap: 11, padding: 13 },

@@ -33,7 +33,7 @@ export function LobbyWaitingScreen({ lobbyCode, lobbyName, onBack, players, curr
             {pulseValues.map((opacity, index) => <Animated.View key={index} style={[styles.pulseDot, { opacity }]} />)}
             <Text style={styles.pulseText}>waiting for host to start</Text>
           </View>
-          <Text style={styles.lobbyCode}>LOBBY CODE: {lobbyCode}</Text>
+          <View style={styles.codeSection}><Text style={styles.codeLabel}>STACK CODE</Text><View style={styles.codeBoxes}>{lobbyCode.split('').map((digit, index) => <View key={`${digit}-${index}`} style={styles.codeBox}><Text style={styles.codeDigit}>{digit}</Text></View>)}</View></View>
           <LobbyPhysicsStack players={players} />
           <View style={styles.liftTracker}>
             <View style={[styles.liftDot, liftedPhoneCount === 0 && styles.restingDot]} />
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   pulseRow: { alignItems: 'center', flexDirection: 'row', gap: 8, marginBottom: 22 },
   pulseDot: { backgroundColor: '#15121F', borderRadius: 5, height: 10, width: 10 },
   pulseText: { color: 'rgba(21,18,31,0.6)', flex: 1, fontSize: 12, fontWeight: '700', marginLeft: 4 },
-  lobbyCode: { color: '#3E4AA0', fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginBottom: 16 },
+  codeSection: { marginBottom: 16 }, codeLabel: { color: 'rgba(21,18,31,0.62)', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 8 }, codeBoxes: { flexDirection: 'row', gap: 9 }, codeBox: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#15121F', borderRadius: 8, borderWidth: 2.5, height: 54, justifyContent: 'center', width: 48 }, codeDigit: { color: '#3E4AA0', fontSize: 28, fontVariant: ['tabular-nums'], fontWeight: '800' },
   liftTracker: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, flexDirection: 'row', gap: 10, marginBottom: 16, padding: 12 },
   liftDot: { backgroundColor: '#E76652', borderColor: '#15121F', borderRadius: 8, borderWidth: 2, height: 16, width: 16 },
   restingDot: { backgroundColor: '#60D9A2' },

@@ -19,7 +19,7 @@ export function HostWaitingScreen({ lobbyCode, lobbyName, players, hostUserId, i
           <Text numberOfLines={2} style={styles.headline}>{lobbyName || 'wait for the'}</Text>
           <Text style={styles.tagline}><Text style={styles.accent}>stack.</Text></Text>
           <Text style={styles.subtitle}>When everyone's phone is resting, start the shared bill.</Text>
-          <Text style={styles.lobbyCode}>LOBBY CODE: {lobbyCode}</Text>
+          <View style={styles.codeSection}><Text style={styles.codeLabel}>STACK CODE</Text><View style={styles.codeBoxes}>{lobbyCode.split('').map((digit, index) => <View key={`${digit}-${index}`} style={styles.codeBox}><Text style={styles.codeDigit}>{digit}</Text></View>)}</View></View>
           <Pressable onPress={() => setSettingsOpen((open) => !open)} style={styles.settingsButton}><Text style={styles.settingsButtonText}>⚙ LOBBY SETTINGS</Text><Text style={styles.settingsValue}>{difficulty}</Text></Pressable>
           {settingsOpen ? <View style={styles.settingsPanel}><Text style={styles.settingsLabel}>DIFFICULTY</Text><View style={styles.difficultyRow}>{(['Easy', 'Medium', 'Hard'] as Difficulty[]).map((option) => <Pressable key={option} onPress={() => { onDifficultyChange(option); setSettingsOpen(false); }} style={[styles.difficultyOption, difficulty === option && styles.difficultyOptionSelected]}><Text style={[styles.difficultyText, difficulty === option && styles.difficultyTextSelected]}>{option}</Text></Pressable>)}</View></View> : null}
 
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   tagline: { color: '#15121F', fontSize: 30, fontWeight: '700', lineHeight: 32, marginBottom: 10 },
   accent: { color: '#3E4AA0', fontWeight: '800' },
   subtitle: { color: 'rgba(21,18,31,0.65)', fontSize: 14, fontWeight: '600', lineHeight: 20, marginBottom: 18 },
-  lobbyCode: { color: '#3E4AA0', fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginBottom: 16 },
+  codeSection: { marginBottom: 16 }, codeLabel: { color: 'rgba(21,18,31,0.62)', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 8 }, codeBoxes: { flexDirection: 'row', gap: 9 }, codeBox: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#15121F', borderRadius: 8, borderWidth: 2.5, height: 54, justifyContent: 'center', width: 48 }, codeDigit: { color: '#3E4AA0', fontSize: 28, fontVariant: ['tabular-nums'], fontWeight: '800' },
   settingsButton: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#15121F', borderRadius: 14, borderWidth: 2, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 13, paddingVertical: 11 },
   settingsButtonText: { color: '#15121F', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
   settingsValue: { color: '#3E4AA0', fontSize: 12, fontWeight: '800' },

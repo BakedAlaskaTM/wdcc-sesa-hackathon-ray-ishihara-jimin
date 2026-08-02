@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
-export type StackPlayer = { userId: string; displayName: string; isReadyOnStack: boolean; billPercent: number };
+export type StackPlayer = { userId: string; displayName: string; isReadyOnStack: boolean; isUsingPhone: boolean; billPercent: number };
 export type FinalBillPlayer = Pick<StackPlayer, 'userId' | 'displayName' | 'billPercent'>;
 export type TimelineRange = { startedAt: number; endedAt: number };
 type RoomState = { roomCode: string; lobbyName: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean; sessionEnded: boolean; finalPlayers: FinalBillPlayer[] | null; finalActivityTimeline: number[] | null; finalTimelineRange: TimelineRange | null };
@@ -131,9 +131,9 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     if (!response.ok) throw new Error(response.error);
   }, [activeUserId, emitWithAck, roomCode]);
 
-  const reportPhoneUse = useCallback(async () => {
+  const reportPhoneUse = useCallback(async (isUsingPhone: boolean) => {
     if (!roomCode) throw new Error('Join a room before reporting phone use.');
-    const response = await emitWithAck<LobbyResponse>('PHONE_USAGE_TICK', { roomCode, userId: activeUserId });
+    const response = await emitWithAck<LobbyResponse>('PHONE_USAGE_TICK', { roomCode, userId: activeUserId, isUsingPhone });
     if (!response.ok) throw new Error(response.error);
   }, [activeUserId, emitWithAck, roomCode]);
 

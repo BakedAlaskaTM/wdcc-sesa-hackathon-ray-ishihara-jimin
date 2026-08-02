@@ -1,0 +1,25 @@
+import { Platform, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
+
+type Props = { onHome: () => void };
+
+const calendarDays = [null, null, null, null, null, null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
+const mealDays = new Set([3, 7, 12, 16, 21, 25, 29]);
+const phoneFreeDays = new Set([7, 16, 25]);
+
+export function StatsScreen({ onHome }: Props) {
+  const isWeb = Platform.OS === 'web';
+  return <SafeAreaView style={[styles.safeArea, isWeb && styles.webCanvas]}>
+    <StatusBar backgroundColor="#EFEAF9" barStyle="dark-content" />
+    <View style={[styles.content, isWeb && styles.phoneFrame]}>
+      <View><Text style={styles.eyebrow}>YOUR STATS</Text><Text style={styles.title}>little wins,<Text style={styles.accent}> tracked.</Text></Text><Text style={styles.subtitle}>A placeholder look at your phone-free meal time.</Text>
+        <View style={styles.statRow}><View style={[styles.statCard, styles.moneyCard]}><Text style={styles.statValue}>$42.60</Text><Text style={styles.statLabel}>MONEY LOST{`\n`}FROM PHONE USE</Text></View><View style={[styles.statCard, styles.mealCard]}><Text style={styles.statValue}>7</Text><Text style={styles.statLabel}>MEALS HAD{`\n`}TOGETHER</Text></View></View>
+        <View style={styles.calendarCard}><View style={styles.calendarHeader}><View><Text style={styles.month}>AUGUST 2026</Text><Text style={styles.calendarHint}>Meals with your crew</Text></View><Text style={styles.legend}><Text style={styles.legendGreen}>●</Text> phone-free</Text></View><View style={styles.weekdays}>{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <Text key={`${day}-${index}`} style={styles.weekday}>{day}</Text>)}</View><View style={styles.grid}>{calendarDays.map((day, index) => <View key={`${day}-${index}`} style={styles.dayCell}>{day ? <View style={[styles.day, mealDays.has(day) && styles.mealDay, phoneFreeDays.has(day) && styles.phoneFreeDay]}><Text style={[styles.dayText, mealDays.has(day) && styles.mealDayText]}>{day}</Text></View> : null}</View>)}</View></View>
+        <View style={styles.streakCard}><Text style={styles.streakMark}>✦</Text><View><Text style={styles.streakTitle}>3 meal phone-free streak</Text><Text style={styles.streakHint}>Keep phones down to grow it.</Text></View></View>
+      </View>
+    </View>
+  </SafeAreaView>;
+}
+
+const styles = StyleSheet.create({
+  safeArea: { backgroundColor: '#EFEAF9', flex: 1 }, webCanvas: { backgroundColor: '#ECE7DF' }, phoneFrame: { alignSelf: 'center', backgroundColor: '#EFEAF9', borderColor: '#2E2A3A', borderLeftWidth: 2, borderRightWidth: 2, maxWidth: '100%', minHeight: '100%', width: 390 }, content: { flex: 1, paddingBottom: 54, paddingHorizontal: 20, paddingTop: 54 }, eyebrow: { color: 'rgba(46,42,58,.56)', fontSize: 10, fontWeight: '800', letterSpacing: 1.3 }, title: { color: '#2E2A3A', fontSize: 27, fontWeight: '800', letterSpacing: -0.7, marginTop: 5 }, accent: { color: '#3E4AA0' }, subtitle: { color: 'rgba(46,42,58,.62)', fontSize: 13, fontWeight: '600', lineHeight: 19, marginTop: 7 }, statRow: { flexDirection: 'row', gap: 11, marginTop: 20 }, statCard: { borderColor: '#2E2A3A', borderRadius: 18, borderWidth: 2, flex: 1, minHeight: 111, padding: 14 }, moneyCard: { backgroundColor: '#F6C94B' }, mealCard: { backgroundColor: '#86CBA3' }, statValue: { color: '#2E2A3A', fontSize: 25, fontVariant: ['tabular-nums'], fontWeight: '800' }, statLabel: { color: 'rgba(46,42,58,.7)', fontSize: 10, fontWeight: '800', letterSpacing: .45, lineHeight: 13, marginTop: 11 }, calendarCard: { backgroundColor: '#FFFDF9', borderColor: '#2E2A3A', borderRadius: 20, borderWidth: 2, marginTop: 18, padding: 15 }, calendarHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }, month: { color: '#2E2A3A', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 }, calendarHint: { color: 'rgba(46,42,58,.54)', fontSize: 11, fontWeight: '600', marginTop: 3 }, legend: { color: 'rgba(46,42,58,.62)', fontSize: 10, fontWeight: '700' }, legendGreen: { color: '#237050', fontSize: 15 }, weekdays: { flexDirection: 'row', marginTop: 17 }, weekday: { color: 'rgba(46,42,58,.5)', flex: 1, fontSize: 10, fontWeight: '800', textAlign: 'center' }, grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 7 }, dayCell: { alignItems: 'center', height: 34, justifyContent: 'center', width: '14.2857%' }, day: { alignItems: 'center', borderRadius: 12, height: 25, justifyContent: 'center', width: 25 }, mealDay: { backgroundColor: '#F0908B' }, phoneFreeDay: { backgroundColor: '#86CBA3' }, dayText: { color: '#2E2A3A', fontSize: 11, fontWeight: '700' }, mealDayText: { fontWeight: '800' }, streakCard: { alignItems: 'center', backgroundColor: '#D9D0EE', borderColor: '#2E2A3A', borderRadius: 16, borderWidth: 2, flexDirection: 'row', gap: 10, marginTop: 16, padding: 13 }, streakMark: { color: '#3E4AA0', fontSize: 25, fontWeight: '800' }, streakTitle: { color: '#2E2A3A', fontSize: 14, fontWeight: '800' }, streakHint: { color: 'rgba(46,42,58,.61)', fontSize: 11, fontWeight: '600', marginTop: 2 },
+});

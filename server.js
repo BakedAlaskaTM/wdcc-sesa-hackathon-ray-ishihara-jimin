@@ -149,7 +149,7 @@ function roomState(roomCode) {
     finalPlayers: room.finalPlayers,
     finalActivityTimeline: room.finalActivityTimeline,
     finalTimelineRange: room.finalTimelineRange,
-    players: [...room.players.values()].map(({ userId, displayName, isReadyOnStack, billPercent }) => ({ userId, displayName, isReadyOnStack, billPercent })),
+    players: [...room.players.values()].map(({ userId, displayName, isReadyOnStack, isUsingPhone, billPercent }) => ({ userId, displayName, isReadyOnStack, isUsingPhone, billPercent })),
   };
 }
 
@@ -205,7 +205,7 @@ function addPlayer(socket, roomCode, userId, displayName) {
   }
   removePlayer(socket);
   const room = rooms.get(roomCode);
-  room.players.set(userId, { userId, displayName: cleanDisplayName(displayName), socketId: socket.id, isReadyOnStack: false, billPercent: 0 });
+  room.players.set(userId, { userId, displayName: cleanDisplayName(displayName), socketId: socket.id, isReadyOnStack: false, isUsingPhone: false, billPercent: 0 });
   rebalanceBill(room);
   socket.join(roomCode);
   socket.data.roomCode = roomCode;
@@ -302,13 +302,18 @@ io.on('connection', (socket) => {
     acknowledge({ ok: true });
   });
 
-  socket.on('PHONE_USAGE_TICK', ({ roomCode, userId }, acknowledge = () => {}) => {
+  socket.on('PHONE_USAGE_TICK', ({ roomCode, userId, isUsingPhone }, acknowledge = () => {}) => {
     const room = rooms.get(roomCode);
     const activePlayer = room?.players.get(userId);
     if (!room || !activePlayer || activePlayer.socketId !== socket.id) {
       return acknowledge({ ok: false, error: 'You are not a player in this room.' });
     }
     if (room.sessionEnded) return acknowledge({ ok: false, error: 'This session has ended.' });
+    activePlayer.isUsingPhone = Boolean(isUsingPhone);
+    if (!activePlayer.isUsingPhone) {
+      broadcastRoomState(roomCode);
+      return acknowledge({ ok: true });
+    }
     if (room.sessionStartedAt) {
       const second = Math.max(0, Math.floor((Date.now() - room.sessionStartedAt) / 1000));
       const activePlayers = room.activityBySecond.get(second) ?? new Set();
