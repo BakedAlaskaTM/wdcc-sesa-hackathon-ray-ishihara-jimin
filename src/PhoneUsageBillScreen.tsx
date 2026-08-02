@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccelerometerMeasurement } from 'expo-sensors';
-import Slider from '@react-native-community/slider';
 import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { usePhoneUsageBill } from './usePhoneUsageBill';
 import { useStackLobby } from './useStackLobby';
@@ -18,12 +17,8 @@ export function PhoneUsageBillScreen({ displayName, userId, roomCode: initialRoo
   const [codeInput, setCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
-  const [orientationThreshold, setOrientationThreshold] = useState(0.82);
-  const [shockwaveThreshold, setShockwaveThreshold] = useState(2.2);
-  const [motionDeltaThreshold, setMotionDeltaThreshold] = useState(0.045);
-  const [recentMotionMs, setRecentMotionMs] = useState(2000);
   const { activeUserId, roomCode, isHost, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, endSession, joinRoom, playersArray, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode, displayName);
-  const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading, orientationThreshold, shockwaveThreshold, motionDeltaThreshold, recentMotionMs });
+  const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading });
   const groupPercent = playersArray.find((player) => player.userId === activeUserId)?.billPercent;
   const displayedPercent = roomCode && groupPercent !== undefined ? groupPercent : billPercent;
   const color = isUsingPhone ? '#FF8A65' : '#60D9A2';
@@ -82,18 +77,6 @@ export function PhoneUsageBillScreen({ displayName, userId, roomCode: initialRoo
             <Text style={styles.statusHint}>{isUsingPhone ? 'Movement or in-hand posture detected' : 'Phone is flat and still'}</Text>
           </View>
         </View>
-
-        {isHost ? <View style={{ backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, gap: 6, padding: 16 }}>
-          <Text style={styles.simulatorTitle}>MOTION CALIBRATION</Text>
-          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 4 }}>Flat orientation: {orientationThreshold.toFixed(2)}g</Text>
-          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={10} minimumTrackTintColor="#3E4AA0" minimumValue={0} onValueChange={setOrientationThreshold} step={0.01} thumbTintColor="#15121F" value={orientationThreshold} />
-          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Shockwave impact: {shockwaveThreshold.toFixed(1)}g</Text>
-          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={50} minimumTrackTintColor="#3E4AA0" minimumValue={0} onValueChange={setShockwaveThreshold} step={0.1} thumbTintColor="#15121F" value={shockwaveThreshold} />
-          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Movement sensitivity: {motionDeltaThreshold.toFixed(3)}g</Text>
-          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={0.2} minimumTrackTintColor="#3E4AA0" minimumValue={0.01} onValueChange={setMotionDeltaThreshold} step={0.005} thumbTintColor="#15121F" value={motionDeltaThreshold} />
-          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Movement hold: {(recentMotionMs / 1000).toFixed(1)}s</Text>
-          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={5000} minimumTrackTintColor="#3E4AA0" minimumValue={500} onValueChange={setRecentMotionMs} step={100} thumbTintColor="#15121F" value={recentMotionMs} />
-        </View> : null}
 
         {isWeb && <View style={styles.simulator}>
           <Text style={styles.simulatorTitle}>PC MOTION SIMULATOR</Text>

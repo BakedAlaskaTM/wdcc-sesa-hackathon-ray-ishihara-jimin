@@ -4,18 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export type FaceDownZDirection = 'positive' | 'negative' | 'either';
 
 export type PhoneStackDetectorOptions = {
-  /** Called once for each debounced physical impact. The value is Unix time in ms. */
-  onShockwave?: (timestamp: number) => void;
-  /** Called when a device that was flat/ready stops being flat. */
-  onPhoneLifted?: () => void;
+  /** Called once when the user interacts with the screen after the detector is armed. */
+  onScreenInteraction?: () => void;
   /** Absolute Z gravity required for a flat phone. Default: 0.85g. */
   zGravityThreshold?: number;
   /** Maximum allowed horizontal gravity on either X or Y. Default: 0.25g. */
   horizontalGravityTolerance?: number;
-  /** Minimum total acceleration magnitude that counts as an impact. Default: 2.2g. */
-  shockwaveThreshold?: number;
-  /** Minimum delay between impact callbacks. Default: 1000ms. */
-  shockwaveDebounceMs?: number;
   /**
    * Select the gravity sign reported for screen-down on the target device.
    * `either` is useful while calibrating across platforms and matches |Z| checks.
@@ -29,52 +23,55 @@ export type PhoneStackDetectorOptions = {
 
 export type PhoneStackDetectorState = {
   isFaceDown: boolean;
-  isLifted: boolean;
-  lastShockwaveTime: number | null;
+  hasScreenInteraction: boolean;
+  recordScreenInteraction: () => void;
   resetDetector: () => void;
 };
 
 const UPDATE_INTERVAL_MS = 20;
 
 /**
- * Detects a phone resting flat in a stack and high-G impacts while it is ready.
+ * Detects when a phone has been placed face down, screen interaction, and
+ * high-G impacts. Once placed, physical movement does not invalidate it.
  * expo-sensors reports acceleration in G-force units, so resting gravity is ~1.0.
  */
 export function usePhoneStackDetector(
   options: PhoneStackDetectorOptions = {},
 ): PhoneStackDetectorState {
   const {
-    onShockwave,
-    onPhoneLifted,
+    onScreenInteraction,
     zGravityThreshold = 0.85,
     horizontalGravityTolerance = 0.25,
-    shockwaveThreshold = 2.2,
-    shockwaveDebounceMs = 1000,
     faceDownZDirection = 'either',
     simulatedReading = null,
     enabled = true,
   } = options;
 
   const [isFaceDown, setIsFaceDown] = useState(false);
-  const [isLifted, setIsLifted] = useState(false);
-  const [lastShockwaveTime, setLastShockwaveTime] = useState<number | null>(null);
+  const [hasScreenInteraction, setHasScreenInteraction] = useState(false);
 
   const faceDownRef = useRef(false);
-  const lastShockwaveRef = useRef<number | null>(null);
-  const callbacksRef = useRef({ onShockwave, onPhoneLifted });
+  const screenInteractionRef = useRef(false);
+  const callbacksRef = useRef({ onScreenInteraction });
 
   // Keep callbacks current without re-subscribing to the hardware sensor on every render.
   useEffect(() => {
-    callbacksRef.current = { onShockwave, onPhoneLifted };
-  }, [onShockwave, onPhoneLifted]);
+    callbacksRef.current = { onScreenInteraction };
+  }, [onScreenInteraction]);
 
   const resetDetector = useCallback(() => {
     faceDownRef.current = false;
-    lastShockwaveRef.current = null;
+    screenInteractionRef.current = false;
     setIsFaceDown(false);
-    setIsLifted(false);
-    setLastShockwaveTime(null);
+    setHasScreenInteraction(false);
   }, []);
+
+  const recordScreenInteraction = useCallback(() => {
+    if (!enabled || !faceDownRef.current || screenInteractionRef.current) return;
+    screenInteractionRef.current = true;
+    setHasScreenInteraction(true);
+    callbacksRef.current.onScreenInteraction?.();
+  }, [enabled]);
 
   const processReading = useCallback(
     ({ x, y, z }: AccelerometerMeasurement) => {
@@ -91,35 +88,18 @@ export function usePhoneStackDetector(
       const nextIsFaceDown = horizontalIsFlat && zIsFaceDown;
       const wasFaceDown = faceDownRef.current;
 
-      if (nextIsFaceDown !== wasFaceDown) {
-        faceDownRef.current = nextIsFaceDown;
-        setIsFaceDown(nextIsFaceDown);
-
-        if (wasFaceDown && !nextIsFaceDown) {
-          setIsLifted(true);
-          callbacksRef.current.onPhoneLifted?.();
-        }
+      // Latch readiness once placed. Movement is allowed by the conceptual
+      // "phone stack" rule and therefore cannot invalidate the detector.
+      if (nextIsFaceDown && !wasFaceDown) {
+        faceDownRef.current = true;
+        setIsFaceDown(true);
       }
 
       // Vector magnitude combines all three axes: sqrt(x² + y² + z²), in Gs.
-      const magnitude = Math.sqrt(x * x + y * y + z * z);
-      const timestamp = Date.now();
-      if (
-        wasFaceDown &&
-        magnitude > shockwaveThreshold &&
-        (lastShockwaveRef.current === null ||
-          timestamp - lastShockwaveRef.current >= shockwaveDebounceMs)
-      ) {
-        lastShockwaveRef.current = timestamp;
-        setLastShockwaveTime(timestamp);
-        callbacksRef.current.onShockwave?.(timestamp);
-      }
     },
     [
       faceDownZDirection,
       horizontalGravityTolerance,
-      shockwaveDebounceMs,
-      shockwaveThreshold,
       zGravityThreshold,
     ],
   );
@@ -142,5 +122,5 @@ export function usePhoneStackDetector(
     enabled,
   ]);
 
-  return { isFaceDown, isLifted, lastShockwaveTime, resetDetector };
+  return { isFaceDown, hasScreenInteraction, recordScreenInteraction, resetDetector };
 }

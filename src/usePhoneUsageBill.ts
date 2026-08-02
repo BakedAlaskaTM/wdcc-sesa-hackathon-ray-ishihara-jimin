@@ -14,8 +14,6 @@ type Options = {
   simulatedReading?: AccelerometerMeasurement | null;
   /** Minimum absolute Z gravity for a phone to count as flat. */
   orientationThreshold?: number;
-  /** Total G-force that counts as an impact/shockwave. */
-  shockwaveThreshold?: number;
   /** Minimum reading-to-reading change that counts as movement. */
   motionDeltaThreshold?: number;
   /** How long movement keeps the phone marked as in use. */
@@ -30,7 +28,7 @@ const INITIAL_BILL_PERCENT = 20;
  * A flat, still phone has gravity almost entirely on Z; a tilted or recently moved
  * phone is treated as in-hand. Accelerometers cannot detect screen touches directly.
  */
-export function usePhoneUsageBill({ simulatedReading = null, orientationThreshold = 0.82, shockwaveThreshold = 2.2, motionDeltaThreshold = 0.045, recentMotionMs = 2000 }: Options = {}): PhoneUsageBillState {
+export function usePhoneUsageBill({ simulatedReading = null, orientationThreshold = 0.82, motionDeltaThreshold = 0.045, recentMotionMs = 2000 }: Options = {}): PhoneUsageBillState {
   const [isUsingPhone, setIsUsingPhone] = useState(false);
   const [billPercent, setBillPercent] = useState(INITIAL_BILL_PERCENT);
   const [activeSeconds, setActiveSeconds] = useState(0);
@@ -47,14 +45,11 @@ export function usePhoneUsageBill({ simulatedReading = null, orientationThreshol
     }
     lastReadingRef.current = { x, y, z, timestamp: now };
 
-    // Gravity close to 1g on Z means the phone is flat; a high total vector
-    // magnitude is treated as a physical impact/shockwave.
-    const magnitude = Math.hypot(x, y, z);
-    if (magnitude >= shockwaveThreshold) lastMotionTimeRef.current = now;
+    // Gravity close to 1g on Z means the phone is flat.
     const isTilted = Math.abs(z) < orientationThreshold;
     const recentlyMoved = now - lastMotionTimeRef.current < recentMotionMs;
     setIsUsingPhone(isTilted || recentlyMoved);
-  }, [motionDeltaThreshold, orientationThreshold, recentMotionMs, shockwaveThreshold]);
+  }, [motionDeltaThreshold, orientationThreshold, recentMotionMs]);
 
   useEffect(() => {
     if (simulatedReading) {

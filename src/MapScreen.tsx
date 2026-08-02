@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, PixelRatio, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import type { GroupMember } from './GroupScoreScreen';
@@ -8,8 +8,8 @@ export type MapHistoryItem = { id: string; name: string; lastSession: string; du
 type Coordinate = { latitude: number; longitude: number };
 type MarkerHistoryItem = MapHistoryItem & Coordinate & { markerColor: string; resultLabel: string };
 
-const MAP_2D_STYLE = 'mapbox://styles/bakedalaskatm/cmsaatxn9005001rd7vgv4fvv';
-const MAP_3D_STYLE = 'mapbox://styles/bakedalaskatm/cmsaatxn9005001rd7vgv4fvv';
+const MAP_2D_STYLE = 'mapbox://styles/bakedalaskatm/cmsaz8sne005a01rda3e5h6nd';
+const MAP_3D_STYLE = 'mapbox://styles/bakedalaskatm/cmsazktg9005b01rd4zu12a64';
 const SUCCESS_MARKER_COLOR = '#237050';
 const FAIL_MARKER_COLOR = '#B32638';
 const DEFAULT_MARKER_COLOR = '#15121F';
@@ -35,6 +35,7 @@ const getResultLabel = (group: MapHistoryItem, profileName: string) => {
 };
 
 export function MapScreen({ history, profileName, onBack }: { history: MapHistoryItem[]; profileName: string; onBack: () => void }) {
+  const devicePixelRatio = PixelRatio.get();
   const [position, setPosition] = useState<Coordinate | null>(null);
   const [loading, setLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -69,10 +70,10 @@ export function MapScreen({ history, profileName, onBack }: { history: MapHistor
   }
 
   const style = mode === '3D' ? MAP_3D_STYLE : MAP_2D_STYLE;
-  return <SafeAreaView style={styles.safeArea}><StatusBar backgroundColor="#AAB7E9" barStyle="dark-content" /><View style={styles.header}><Pressable onPress={onBack} hitSlop={12}><Text style={styles.back}>History</Text></Pressable><Text style={styles.headerTitle}>SESSION MAP</Text><View style={styles.headerSpacer} /></View><View style={styles.mapContainer}>{mapboxToken ? <WebView key={mode} originWhitelist={['*']} source={{ html: buildMapHtml(markers, position, mapboxToken, style, mode) }} style={styles.map} javaScriptEnabled domStorageEnabled /> : <View style={styles.message}><Text style={styles.messageTitle}>Mapbox token required</Text><Text style={styles.messageText}>Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN to display the session map.</Text></View>}<View style={styles.toggle}><Pressable onPress={() => setMode('2D')} style={[styles.toggleButton, mode === '2D' && styles.toggleActive]}><Text style={[styles.toggleText, mode === '2D' && styles.toggleActiveText]}>2D</Text></Pressable><Pressable onPress={() => setMode('3D')} style={[styles.toggleButton, mode === '3D' && styles.toggleActive]}><Text style={[styles.toggleText, mode === '3D' && styles.toggleActiveText]}>3D</Text></Pressable></View></View>{locationError ? <Text style={styles.locationError}>{locationError} Showing saved session locations instead.</Text> : null}</SafeAreaView>;
+  return <SafeAreaView style={styles.safeArea}><StatusBar backgroundColor="#AAB7E9" barStyle="dark-content" /><View style={styles.header}><Pressable onPress={onBack} hitSlop={12}><Text style={styles.back}>History</Text></Pressable><Text style={styles.headerTitle}>SESSION MAP</Text><View style={styles.headerSpacer} /></View><View style={styles.mapContainer}>{mapboxToken ? <WebView key={`${mode}-${devicePixelRatio}`} originWhitelist={['*']} source={{ html: buildMapHtml(markers, position, mapboxToken, style, mode, devicePixelRatio) }} style={styles.map} javaScriptEnabled domStorageEnabled /> : <View style={styles.message}><Text style={styles.messageTitle}>Mapbox token required</Text><Text style={styles.messageText}>Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN to display the session map.</Text></View>}<View style={styles.toggle}><Pressable onPress={() => setMode('2D')} style={[styles.toggleButton, mode === '2D' && styles.toggleActive]}><Text style={[styles.toggleText, mode === '2D' && styles.toggleActiveText]}>2D</Text></Pressable><Pressable onPress={() => setMode('3D')} style={[styles.toggleButton, mode === '3D' && styles.toggleActive]}><Text style={[styles.toggleText, mode === '3D' && styles.toggleActiveText]}>3D</Text></Pressable></View></View>{locationError ? <Text style={styles.locationError}>{locationError} Showing saved session locations instead.</Text> : null}</SafeAreaView>;
 }
 
-function buildMapHtml(groups: MarkerHistoryItem[], userPosition: Coordinate | null, token: string, style: string, mode: '2D' | '3D') {
+function buildMapHtml(groups: MarkerHistoryItem[], userPosition: Coordinate | null, token: string, style: string, mode: '2D' | '3D', devicePixelRatio: number) {
   const sessions = {
     type: 'FeatureCollection',
     features: groups.map((group) => ({
@@ -89,14 +90,14 @@ function buildMapHtml(groups: MarkerHistoryItem[], userPosition: Coordinate | nu
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.css" rel="stylesheet">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.26.0/mapbox-gl.css" rel="stylesheet">
   <style>
     body{margin:0}#map{height:100vh}.mapboxgl-popup{max-width:340px!important}.mapboxgl-popup-content{background:transparent;box-shadow:none;padding:0}.mapboxgl-popup-tip{border-top-color:#F5EFDA}.mapboxgl-popup-close-button{font-size:22px;z-index:2}.card{background:#F5EFDA;border:2.5px solid #15121F;border-radius:18px;color:#15121F;font-family:Arial,sans-serif;min-width:245px;padding:16px}.heading,.summary,.score-head,.group-row{align-items:center;display:flex;justify-content:space-between}.title{align-items:center;display:flex;font-size:19px;font-weight:800;gap:5px;margin:0}.result-icon{height:25px;object-fit:contain;width:25px}.meta{color:rgba(21,18,31,.58);font-size:13px;font-weight:600;line-height:18px;margin:4px 0 0}.summary{border-top:1.5px solid rgba(21,18,31,.2);color:#3E4AA0;font-size:13px;font-weight:800;margin-top:14px;padding-top:13px}.scores{display:grid;gap:10px;margin-top:15px}.score-head{font-size:14px;font-weight:700;margin-bottom:6px}.bar{background:rgba(21,18,31,.14);border:1px solid #15121F;border-radius:7px;height:12px;overflow:hidden}.fill{border-radius:7px;height:100%}.group-button,.back{background:transparent;border:0;color:#15121F;cursor:pointer;font-family:Arial,sans-serif;text-align:left;width:100%}.group-button{border-top:1.5px solid rgba(21,18,31,.2);margin-top:12px;padding:12px 0 0}.back{color:#3E4AA0;font-size:13px;font-weight:800;padding:0;width:auto}.arrow{color:#3E4AA0;font-size:18px;font-weight:800}
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.js"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.26.0/mapbox-gl.js"></script>
   <script>
     mapboxgl.accessToken=${JSON.stringify(token)};
     const sessions=${JSON.stringify(sessions)},user=${JSON.stringify(user)};
@@ -110,7 +111,7 @@ function buildMapHtml(groups: MarkerHistoryItem[], userPosition: Coordinate | nu
     window.showGroup=i=>popup.setHTML(detail(active[i],true));
     window.showPicker=()=>popup.setHTML(picker(active));
     const open=(coordinates,items)=>{active=items;popup=new mapboxgl.Popup({offset:16,maxWidth:'340px'}).setLngLat(coordinates).setHTML(items.length===1?detail(items[0],false):picker(items)).addTo(map)};
-    const map=new mapboxgl.Map({container:'map',style:${JSON.stringify(style)},center:${JSON.stringify(center)},pitch:${pitch},zoom:user?14:12});
+    const map=new mapboxgl.Map({container:'map',style:${JSON.stringify(style)},center:${JSON.stringify(center)},pitch:${pitch},zoom:user?14:12,pixelRatio:${JSON.stringify(devicePixelRatio)}});
     map.addControl(new mapboxgl.NavigationControl(),'top-right');
     map.on('load',()=>{
       map.addSource('sessions',{type:'geojson',data:sessions,cluster:true,clusterMaxZoom:14,clusterRadius:48});
