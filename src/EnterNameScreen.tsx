@@ -80,7 +80,7 @@ export function EnterNameScreen({ lobbyCode, isJoining = false, error, onBack, o
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  safeArea: { backgroundColor: '#AAB7E9', flex: 1 },
+  safeArea: { backgroundColor: '#EFEAF9', flex: 1 },
   webCanvas: { backgroundColor: '#AAB7E9' },
   phoneFrame: { alignSelf: 'center', borderColor: '#15121F', borderLeftWidth: 3, borderRightWidth: 3, maxWidth: '100%', minHeight: '100%', width: 390 },
   content: { flexGrow: 1, justifyContent: 'space-between', paddingBottom: 22, paddingHorizontal: 26, paddingTop: 52 },

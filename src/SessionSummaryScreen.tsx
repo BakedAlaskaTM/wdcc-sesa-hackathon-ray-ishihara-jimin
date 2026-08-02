@@ -3,7 +3,7 @@ import { Linking, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, Styl
 import * as Sharing from 'expo-sharing';
 import * as ExpoLinking from 'expo-linking';
 import { captureRef } from 'react-native-view-shot';
-import { initStripe, useStripe } from '@stripe/stripe-react-native';
+import { initStripe, useStripe } from './stripeClient';
 import type { FinalBillPlayer } from './useStackLobby';
 import { getLobbyServerUrl } from './lobbyServerUrl';
 
@@ -18,6 +18,7 @@ type Props = {
 };
 
 const TIMELINE_SEGMENTS = 36;
+const PLAYER_COLORS = ['#F0908B', '#B79DDD', '#86CBA3', '#F6C94B'];
 
 function makeTimelineBuckets(activityTimeline: number[]) {
   if (!activityTimeline.length) return Array.from({ length: TIMELINE_SEGMENTS }, () => 0);
@@ -192,26 +193,26 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar backgroundColor="#AAB7E9" barStyle="dark-content" />
+    <SafeAreaView style={[styles.safeArea, showReceipt ? styles.receiptScreen : styles.finalScreen]}>
+      <StatusBar backgroundColor={showReceipt ? "#E7F4EA" : "#EFEAF9"} barStyle="dark-content" />
       <ScrollView contentContainerStyle={[styles.content, isWeb && styles.phoneFrame]} keyboardShouldPersistTaps="handled">
-        <Text style={styles.eyebrow}>{showReceipt ? 'PAYMENT RECEIPT' : 'SESSION COMPLETE'}</Text>
+        <Text style={styles.eyebrow}>{showReceipt ? 'PAYMENT RECEIPT' : "THAT'S A WRAP · YOUR CREW"}</Text>
         <Text style={styles.title}>
-          {showReceipt ? <>split the <Text style={styles.accent}>bill</Text></> : <>final <Text style={styles.accent}>bill</Text></>}
+          {showReceipt ? <>split the <Text style={styles.accent}>bill</Text></> : <>who <Text style={styles.accent}>caved?</Text></>}
         </Text>
-        {lobbyName ? <Text style={styles.lobbyName}>{lobbyName}</Text> : null}
 
         {showReceipt ? (
           <>
             <View ref={receiptRef} collapsable={false} style={styles.receiptCapture}>
               <Text style={styles.receiptBrand}>PHONE TIME</Text>
-              <Text style={styles.receiptHeading}>{lobbyName || 'Shared bill receipt'}</Text>
-              <Text style={styles.subtitle}>Meal total: ${cost.toFixed(2)}</Text>
+              <Text style={styles.receiptHeading}>{lobbyName || 'Your crew'} · meal ${cost.toFixed(2)}</Text>
+              <View style={styles.receiptDivider} />
               <View style={styles.card}>
                 {sorted.map((player) => {
                   const isPaidPlayer = paidUserIds.includes(player.userId) || (paymentStatus === 'paid' && player.userId === payingPlayer?.userId);
+                  const isYou = player.userId === payingPlayer?.userId;
                   return (
-                  <View key={player.userId} style={[styles.receiptRow, isPaidPlayer && styles.paidReceiptRow]}>
+                  <View key={player.userId} style={[styles.receiptRow, isYou && styles.youReceiptRow, isPaidPlayer && !isYou && styles.paidReceiptRow]}>
                     <View>
                       <Text style={[styles.name, isPaidPlayer && styles.paidReceiptText]}>{player.displayName}{isPaidPlayer ? ' · PAID' : ''}</Text>
                       <Text style={[styles.share, isPaidPlayer && styles.paidReceiptText]}>{Math.round(player.billPercent)}% of the bill</Text>
@@ -222,7 +223,7 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
                 })}
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>TOTAL</Text>
-                  <Text style={styles.totalAmount}>${cost.toFixed(2)}</Text>
+                  <Pressable disabled={!isHost || hasPaidPlayer} onPress={() => { setCostInput(cost.toFixed(2)); setShowReceipt(false); }} style={styles.totalTap}><Text style={styles.totalAmount}>${cost.toFixed(2)}</Text></Pressable>
                 </View>
               </View>
             </View>
@@ -233,9 +234,6 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
             </Pressable>
             {payingPlayer ? <Pressable disabled={isStartingCheckout || paymentStatus !== 'idle' || isCurrentPlayerPaid} onPress={payMerchant} style={[styles.payButton, (isStartingCheckout || paymentStatus === 'pending') && styles.shareButtonDisabled, isCurrentPlayerPaid && styles.paidButton]}><Text style={[styles.payButtonText, paymentStatus === 'pending' && styles.shareButtonTextDisabled, isCurrentPlayerPaid && styles.paidButtonText]}>{isCurrentPlayerPaid ? 'PAID ✓' : paymentStatus === 'pending' ? 'AWAITING PAYMENT...' : isStartingCheckout ? 'OPENING CHECKOUT...' : `PAY $${(cost * payingPlayer.billPercent / 100).toFixed(2)} TO RESTAURANT`}</Text></Pressable> : null}
             {paymentError ? <Text style={styles.paymentError}>{paymentError}</Text> : null}
-            {isHost ? <Pressable disabled={hasPaidPlayer} onPress={() => { setCostInput(cost.toFixed(2)); setShowReceipt(false); }} style={[styles.outlineButton, hasPaidPlayer && styles.shareButtonDisabled]}>
-              <Text style={[styles.outlineText, hasPaidPlayer && styles.shareButtonTextDisabled]}>CHANGE MEAL TOTAL</Text>
-            </Pressable> : null}
           </>
         ) : (
           <>
@@ -243,15 +241,16 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
             <View style={styles.card}>
               {sorted.map((player, index) => {
                 const isYou = player.userId === payingPlayer?.userId;
+                const playerColor = PLAYER_COLORS[index % PLAYER_COLORS.length];
                 return (
                   <View key={player.userId} style={[styles.playerCard, isYou && styles.winner]}>
                     <View style={styles.row}>
-                      <Text style={[styles.rank, isYou && styles.winnerText]}>#{index + 1}</Text>
+                      <Text style={[styles.rank, { backgroundColor: playerColor }]}>{player.displayName.slice(0, 1)}</Text>
                       <Text numberOfLines={1} style={[styles.name, isYou && styles.winnerText]}>{player.displayName}</Text>
                       <Text style={[styles.percent, isYou && styles.winnerText]}>{Math.round(player.billPercent)}%</Text>
                     </View>
                     <View style={[styles.barTrack, isYou && styles.winnerTrack]}>
-                      <View style={[styles.bar, { width: `${Math.max(2, Math.min(100, player.billPercent))}%` }, isYou && styles.winnerBar]} />
+                      <View style={[styles.bar, { backgroundColor: playerColor, width: `${Math.max(2, Math.min(100, player.billPercent))}%` }]} />
                     </View>
                   </View>
                 );
@@ -283,15 +282,15 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
           <View style={styles.timelineLabels}><Text style={styles.timelineLabel}>{timelineLabels?.start ?? 'START'}</Text><Text style={styles.timelineLabel}>{timelineLabels?.end ?? 'END'}</Text></View>
         </View>
         <View style={styles.funStatsCard}>
-          <Text style={styles.timelineTitle}>PHONE MOMENTS</Text>
-          {funStats.map((player, index) => {
+          <View style={styles.cavedMascot}><View style={styles.cavedEyes}><View style={styles.cavedEye} /><View style={styles.cavedEye} /></View></View>
+          <View style={styles.cavedCopy}>{funStats.slice(0, 1).map((player, index) => {
             const seconds = roomCode ? activitySecondsByUser[player.userId] ?? 0 : [960, 720, 420][index] ?? 180;
             const duration = seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`;
             const equalShare = players.length ? cost / players.length : 0;
             const extraCost = Math.max(0, cost * player.billPercent / 100 - equalShare);
-            return <Text key={player.userId} style={styles.funStatText}><Text style={styles.funStatName}>{player.displayName}</Text> used their phone for {duration}{extraCost > 0.005 ? <>, costing them an extra <Text style={styles.funStatAmount}>${extraCost.toFixed(2)}</Text>.</> : '.'}</Text>;
+            return <Text key={player.userId} style={styles.funStatText}><Text style={styles.funStatName}>{player.displayName}</Text> caved for <Text style={styles.funStatName}>{duration}</Text>{extraCost > 0.005 ? <> — that&apos;s an extra <Text style={styles.funStatAmount}>${extraCost.toFixed(2)}</Text> on their plate.</> : '.'}</Text>;
           })}
-          {!funStats.length ? <Text style={styles.funStatText}>No phone-use moments were recorded this session.</Text> : null}
+          {!funStats.length ? <Text style={styles.funStatText}>No one caved this session. Nicely played.</Text> : null}</View>
         </View>
         <Pressable onPress={onHome} style={styles.homeButton}><Text style={styles.homeText}>RETURN HOME</Text></Pressable>
       </ScrollView>
@@ -300,29 +299,28 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: '#AAB7E9', flex: 1 },
+  safeArea: { flex: 1 }, finalScreen: { backgroundColor: '#EFEAF9' }, receiptScreen: { backgroundColor: '#E7F4EA' },
   content: { flexGrow: 1, gap: 18, padding: 26, paddingTop: 52 },
   phoneFrame: { alignSelf: 'center', borderColor: '#15121F', borderLeftWidth: 3, borderRightWidth: 3, maxWidth: '100%', minHeight: '100%', width: 390 },
   eyebrow: { color: 'rgba(21,18,31,0.6)', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
   title: { color: '#15121F', fontSize: 31, fontWeight: '800' },
-  lobbyName: { color: '#3E4AA0', fontSize: 18, fontWeight: '800', marginTop: -12 },
   accent: { color: '#3E4AA0' },
   subtitle: { color: 'rgba(21,18,31,0.65)', fontSize: 14, fontWeight: '600', marginTop: -10 },
-  receiptCapture: { backgroundColor: '#AAB7E9', gap: 14, padding: 2 },
-  receiptBrand: { color: '#3E4AA0', fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
-  receiptHeading: { color: '#15121F', fontSize: 25, fontWeight: '800' },
-  card: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 20, borderWidth: 2.5, gap: 9, padding: 14 },
-  playerCard: { borderColor: '#15121F', borderRadius: 14, borderWidth: 2, gap: 10, padding: 13 },
-  winner: { backgroundColor: '#3E4AA0' },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 12 },
-  rank: { color: '#3E4AA0', fontSize: 15, fontWeight: '800', width: 28 },
-  name: { color: '#15121F', flex: 1, fontSize: 16, fontWeight: '800' },
-  percent: { color: '#15121F', fontSize: 19, fontVariant: ['tabular-nums'], fontWeight: '800' },
-  winnerText: { color: '#F5EFDA' },
-  barTrack: { backgroundColor: 'rgba(21,18,31,0.14)', borderColor: '#15121F', borderRadius: 7, borderWidth: 1, height: 12, overflow: 'hidden' },
-  bar: { backgroundColor: '#76E5B1', borderRadius: 6, height: '100%' },
-  winnerTrack: { backgroundColor: 'rgba(245,239,218,0.28)', borderColor: '#F5EFDA' },
-  winnerBar: { backgroundColor: '#F5EFDA' },
+  receiptCapture: { backgroundColor: '#E7F4EA', gap: 14, padding: 2 },
+  receiptBrand: { color: '#2E2A3A', fontSize: 12, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
+  receiptHeading: { color: 'rgba(46,42,58,.52)', fontSize: 11, fontWeight: '600', marginTop: -9, textAlign: 'center' }, receiptDivider: { borderStyle: 'dashed', borderTopColor: 'rgba(46,42,58,.3)', borderTopWidth: 2, marginVertical: 2 },
+  card: { backgroundColor: '#FFFDF9', borderColor: '#2E2A3A', borderRadius: 24, borderWidth: 2, gap: 4, padding: 16 },
+  playerCard: { gap: 9, paddingBottom: 12, paddingTop: 5 },
+  winner: { backgroundColor: '#EAF5EE', borderColor: '#2E2A3A', borderRadius: 12, borderWidth: 2, marginHorizontal: -6, paddingHorizontal: 8, paddingTop: 8 },
+  row: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  rank: { alignItems: 'center', backgroundColor: '#F0908B', borderColor: '#2E2A3A', borderRadius: 8, borderWidth: 2, color: '#2E2A3A', fontSize: 13, fontWeight: '800', height: 26, lineHeight: 22, overflow: 'hidden', textAlign: 'center', width: 26 },
+  name: { color: '#2E2A3A', flex: 1, fontSize: 15, fontWeight: '800' },
+  percent: { color: '#2E2A3A', fontSize: 16, fontVariant: ['tabular-nums'], fontWeight: '800' },
+  winnerText: { color: '#2E2A3A' },
+  barTrack: { backgroundColor: 'rgba(46,42,58,0.12)', borderColor: '#2E2A3A', borderRadius: 7, borderWidth: 1, height: 12, overflow: 'hidden' },
+  bar: { backgroundColor: '#B79DDD', borderRadius: 6, height: '100%' },
+  winnerTrack: { backgroundColor: 'rgba(134,203,163,0.22)', borderColor: '#2E2A3A' },
+  winnerBar: { backgroundColor: '#86CBA3' },
   costCard: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 18, borderWidth: 2.5, gap: 8, padding: 16 },
   label: { color: '#15121F', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
   costRow: { alignItems: 'center', flexDirection: 'row' },
@@ -332,7 +330,8 @@ const styles = StyleSheet.create({
   primaryText: { color: '#F5EFDA', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
   disabledButton: { backgroundColor: 'rgba(21,18,31,0.15)' },
   disabledText: { color: 'rgba(21,18,31,0.4)' },
-  receiptRow: { alignItems: 'center', borderBottomColor: 'rgba(21,18,31,0.18)', borderBottomWidth: 1, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 },
+  receiptRow: { alignItems: 'center', borderBottomColor: 'rgba(46,42,58,.14)', borderBottomWidth: 1.5, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
+  youReceiptRow: { backgroundColor: '#EAF5EE', borderBottomColor: '#2E2A3A', borderBottomWidth: 2, borderColor: '#2E2A3A', borderRadius: 12, borderWidth: 2, marginHorizontal: -6, marginVertical: 4, paddingHorizontal: 9 },
   paidReceiptRow: { opacity: 0.58 },
   paidReceiptText: { color: '#38785D', textDecorationLine: 'line-through' },
   share: { color: 'rgba(21,18,31,0.6)', fontSize: 12, fontWeight: '700', marginTop: 2 },
@@ -340,12 +339,13 @@ const styles = StyleSheet.create({
   totalRow: { alignItems: 'center', borderTopColor: '#15121F', borderTopWidth: 2, flexDirection: 'row', justifyContent: 'space-between', marginTop: 3, paddingHorizontal: 2, paddingTop: 14 },
   totalLabel: { color: '#15121F', fontSize: 13, fontWeight: '800', letterSpacing: 1 },
   totalAmount: { color: '#3E4AA0', fontSize: 24, fontVariant: ['tabular-nums'], fontWeight: '800' },
-  shareButton: { alignItems: 'center', backgroundColor: '#3E4AA0', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, justifyContent: 'center', minHeight: 52 },
-  shareButtonText: { color: '#F5EFDA', fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
+  totalTap: { borderRadius: 8, paddingHorizontal: 4, paddingVertical: 2 },
+  shareButton: { alignItems: 'center', backgroundColor: 'transparent', borderColor: '#2E2A3A', borderRadius: 24, borderWidth: 2, justifyContent: 'center', minHeight: 48 },
+  shareButtonText: { color: '#2E2A3A', fontSize: 13, fontWeight: '800', letterSpacing: 0.4 },
   shareButtonDisabled: { backgroundColor: 'rgba(21,18,31,0.15)' },
   shareButtonTextDisabled: { color: 'rgba(21,18,31,0.5)' },
-  payButton: { alignItems: 'center', backgroundColor: '#15121F', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, justifyContent: 'center', minHeight: 52 },
-  payButtonText: { color: '#F5EFDA', fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
+  payButton: { alignItems: 'center', backgroundColor: '#F6C94B', borderColor: '#2E2A3A', borderRadius: 26, borderWidth: 2, justifyContent: 'center', minHeight: 54, shadowColor: '#2E2A3A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 0 },
+  payButtonText: { color: '#2E2A3A', fontSize: 14, fontWeight: '800', letterSpacing: 0.4 },
   paidButton: { backgroundColor: '#60D9A2' },
   paidButtonText: { color: '#15121F' },
   paymentError: { color: '#761C2C', fontSize: 12, fontWeight: '700', marginTop: -8, textAlign: 'center' },
@@ -358,10 +358,12 @@ const styles = StyleSheet.create({
   timelineSegment: { flex: 1 },
   timelineLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -5 },
   timelineLabel: { color: 'rgba(21,18,31,0.58)', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
-  funStatsCard: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, gap: 10, padding: 15 },
-  funStatText: { color: 'rgba(21,18,31,0.72)', fontSize: 13, fontWeight: '600', lineHeight: 19 },
-  funStatName: { color: '#15121F', fontWeight: '800' },
-  funStatAmount: { color: '#3E4AA0', fontWeight: '800' },
+  funStatsCard: { alignItems: 'center', backgroundColor: '#FDF3D6', borderColor: '#2E2A3A', borderRadius: 18, borderWidth: 2, flexDirection: 'row', gap: 11, padding: 13 },
+  cavedMascot: { alignItems: 'center', backgroundColor: '#F6C94B', borderColor: '#2E2A3A', borderRadius: 9, borderWidth: 2, height: 31, justifyContent: 'center', width: 27 },
+  cavedEyes: { flexDirection: 'row', gap: 5 }, cavedEye: { backgroundColor: '#2E2A3A', borderRadius: 2, height: 4, width: 4 }, cavedCopy: { flex: 1 },
+  funStatText: { color: '#2E2A3A', fontSize: 12.5, fontWeight: '600', lineHeight: 18 },
+  funStatName: { color: '#2E2A3A', fontWeight: '800' },
+  funStatAmount: { color: '#D9705F', fontWeight: '800' },
   homeButton: { alignItems: 'center', backgroundColor: '#15121F', borderColor: '#15121F', borderRadius: 20, borderWidth: 3, justifyContent: 'center', marginTop: 'auto', minHeight: 62 },
   homeText: { color: '#F5EFDA', fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
 });

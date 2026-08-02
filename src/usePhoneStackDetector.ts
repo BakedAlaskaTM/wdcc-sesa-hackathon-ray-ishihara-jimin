@@ -98,6 +98,10 @@ export function usePhoneStackDetector(
         if (wasFaceDown && !nextIsFaceDown) {
           setIsLifted(true);
           callbacksRef.current.onPhoneLifted?.();
+        } else if (nextIsFaceDown) {
+          // A phone that has been put back flat is resting again; do not
+          // leave its lobby status permanently marked as lifted.
+          setIsLifted(false);
         }
       }
 
