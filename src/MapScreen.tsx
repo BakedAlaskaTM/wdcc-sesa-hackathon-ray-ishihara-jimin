@@ -78,7 +78,11 @@ function buildMapHtml(groups: MarkerHistoryItem[], userPosition: Coordinate | nu
     type: 'FeatureCollection',
     features: groups.map((group) => ({
       type: 'Feature',
-      properties: { groupData: JSON.stringify(group), markerColor: group.markerColor },
+      properties: {
+        groupData: JSON.stringify(group),
+        markerColor: group.markerColor,
+        markerType: group.resultLabel === 'You won!' ? 'win-pin' : group.resultLabel === 'You lost!' ? 'lose-pin' : 'neutral-pin',
+      },
       geometry: { type: 'Point', coordinates: [group.longitude, group.latitude] },
     })),
   };
@@ -108,16 +112,42 @@ function buildMapHtml(groups: MarkerHistoryItem[], userPosition: Coordinate | nu
     const result=(g)=>g.resultLabel?' &bull; <span>'+esc(g.resultLabel)+'</span><img class="result-icon" src="'+(g.resultLabel==='You won!'?wonIcon:lostIcon)+'" alt="">':'';
     const detail=(g,canReturn)=>'<div class="card"><div class="heading"><h3 class="title">'+esc(g.name)+result(g)+'</h3>'+(canReturn?'<button class="back" onclick="window.showPicker()">All groups</button>':'')+'</div><p class="meta">'+esc(g.lastSession)+' - '+esc(g.duration)+'</p><div class="summary"><span>'+g.members.length+' members</span></div><div class="scores">'+g.members.map(m=>'<div><div class="score-head"><span>'+esc(m.name)+'</span><span>'+m.percentage+'%</span></div><div class="bar"><div class="fill" style="width:'+m.percentage+'%;background:'+esc(m.color)+'"></div></div></div>').join('')+'</div></div>';
     const picker=items=>'<div class="card"><div class="heading"><h3 class="title">choose a group</h3></div><p class="meta">'+items.length+' sessions at this location</p>'+items.map((g,i)=>'<button class="group-button" onclick="window.showGroup('+i+')"><span class="group-row"><span><strong>'+esc(g.name)+'</strong><br><span class="meta">'+esc(g.lastSession)+' - '+esc(g.duration)+'</span></span><span class="arrow">></span></span></button>').join('')+'</div>';
+    const createPin=color=>{
+      const scale=2,canvas=document.createElement('canvas');
+      canvas.width=72;canvas.height=88;
+      const context=canvas.getContext('2d');
+      context.scale(scale,scale);
+      context.beginPath();
+      context.moveTo(18,42);
+      context.bezierCurveTo(15,37,3,27,3,18);
+      context.bezierCurveTo(3,9.7,9.7,3,18,3);
+      context.bezierCurveTo(26.3,3,33,9.7,33,18);
+      context.bezierCurveTo(33,27,21,37,18,42);
+      context.closePath();
+      context.fillStyle=color;
+      context.strokeStyle='#2E2A3A';
+      context.lineWidth=2.5;
+      context.lineJoin='round';
+      context.fill();context.stroke();
+      context.beginPath();
+      context.arc(18,17,5.5,0,Math.PI*2);
+      context.fillStyle='#FFFDF9';
+      context.fill();
+      return context.getImageData(0,0,canvas.width,canvas.height);
+    };
     window.showGroup=i=>popup.setHTML(detail(active[i],true));
     window.showPicker=()=>popup.setHTML(picker(active));
     const open=(coordinates,items)=>{active=items;popup=new mapboxgl.Popup({offset:16,maxWidth:'340px'}).setLngLat(coordinates).setHTML(items.length===1?detail(items[0],false):picker(items)).addTo(map)};
     const map=new mapboxgl.Map({container:'map',style:${JSON.stringify(style)},center:${JSON.stringify(center)},pitch:${pitch},zoom:user?14:12,pixelRatio:${JSON.stringify(devicePixelRatio)}});
     map.addControl(new mapboxgl.NavigationControl(),'top-right');
     map.on('load',()=>{
+      map.addImage('win-pin',createPin('#86CBA3'),{pixelRatio:2});
+      map.addImage('lose-pin',createPin('#F0908B'),{pixelRatio:2});
+      map.addImage('neutral-pin',createPin('#F6C94B'),{pixelRatio:2});
       map.addSource('sessions',{type:'geojson',data:sessions,cluster:true,clusterMaxZoom:14,clusterRadius:48});
       map.addLayer({id:'clusters',type:'circle',source:'sessions',filter:['has','point_count'],paint:{'circle-color':'#3E4AA0','circle-radius':['step',['get','point_count'],20,5,25,15,31],'circle-stroke-width':2,'circle-stroke-color':'#F5EFDA'}});
       map.addLayer({id:'cluster-count',type:'symbol',source:'sessions',filter:['has','point_count'],layout:{'text-field':['get','point_count_abbreviated'],'text-font':['DIN Offc Pro Medium','Arial Unicode MS Bold'],'text-size':12},paint:{'text-color':'#F5EFDA'}});
-      map.addLayer({id:'session-points',type:'circle',source:'sessions',filter:['!', ['has','point_count']],paint:{'circle-color':['get','markerColor'],'circle-radius':9,'circle-stroke-width':3,'circle-stroke-color':'#F5EFDA'}});
+      map.addLayer({id:'session-points',type:'symbol',source:'sessions',filter:['!', ['has','point_count']],layout:{'icon-image':['get','markerType'],'icon-anchor':'bottom','icon-allow-overlap':true}});
       map.on('click','clusters',e=>{const f=map.queryRenderedFeatures(e.point,{layers:['clusters']})[0],source=map.getSource('sessions');source.getClusterLeaves(f.properties.cluster_id,f.properties.point_count,0,(error,leaves)=>{if(!error)open(f.geometry.coordinates,leaves.map(groupFrom));});});
       map.on('click','session-points',e=>{const f=e.features[0];open(f.geometry.coordinates,[groupFrom(f)]);});
       if(user){map.addSource('current-user',{type:'geojson',data:{type:'FeatureCollection',features:[user]}});map.addLayer({id:'current-user-marker',type:'circle',source:'current-user',paint:{'circle-color':'#53B7A8','circle-radius':10,'circle-stroke-color':'#FFF','circle-stroke-width':3}});}

@@ -80,10 +80,13 @@
     "lastSession": "Yesterday, 6:30 PM",
     "duration": "110 min",
     "members": [
-      { "id": "1", "name": "Richard", "percentage": 45, "color": "#E9C46A" },
-      { "id": "2", "name": "Jimin", "percentage": 25, "color": "#53B7A8" },
+      { "id": "1", "name": "Richard", "percentage": 12, "color": "#E9C46A" },
+      { "id": "2", "name": "Jimin", "percentage": 13, "color": "#53B7A8" },
       { "id": "3", "name": "Simon", "percentage": 15, "color": "#2A9D8F" },
-      { "id": "4", "name": "Ray", "percentage": 15, "color": "#5B7CFA" }
+      { "id": "4", "name": "Ray", "percentage": 14, "color": "#5B7CFA" },
+      { "id": "5", "name": "Nicole", "percentage": 17, "color": "#5B7CFA" },
+      { "id": "6", "name": "Nikhil", "percentage": 14, "color": "#5B7CFA" },
+      { "id": "7", "name": "Devin", "percentage": 15, "color": "#5B7CFA" }
     ]
   }
 ]
