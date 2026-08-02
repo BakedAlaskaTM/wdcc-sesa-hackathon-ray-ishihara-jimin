@@ -15,17 +15,19 @@ import {
 
 type Props = {
   lobbyCode: string;
+  isCreating?: boolean;
   isJoining?: boolean;
   error?: string | null;
   onBack: () => void;
-  onJoin: (name: string) => void;
+  onJoin: (name: string, groupName?: string) => void;
 };
 
-export function EnterNameScreen({ lobbyCode, isJoining = false, error, onBack, onJoin }: Props) {
+export function EnterNameScreen({ lobbyCode, isCreating = false, isJoining = false, error, onBack, onJoin }: Props) {
   const [name, setName] = useState('');
+  const [groupName, setGroupName] = useState('your crew');
   const isWeb = Platform.OS === 'web';
   const trimmedName = name.trim();
-  const isDisabled = !trimmedName || isJoining;
+  const isDisabled = !trimmedName || (isCreating && !groupName.trim()) || isJoining;
 
   return (
     <SafeAreaView style={[styles.safeArea, isWeb && styles.webCanvas]}>
@@ -49,7 +51,7 @@ export function EnterNameScreen({ lobbyCode, isJoining = false, error, onBack, o
               editable={!isJoining}
               maxLength={24}
               onChangeText={setName}
-              onSubmitEditing={() => { if (!isDisabled) onJoin(trimmedName); }}
+              onSubmitEditing={() => { if (!isDisabled) onJoin(trimmedName, groupName.trim()); }}
               placeholder="e.g. Jordan"
               placeholderTextColor="rgba(21,18,31,0.4)"
               returnKeyType="done"
@@ -57,21 +59,22 @@ export function EnterNameScreen({ lobbyCode, isJoining = false, error, onBack, o
               value={name}
             />
             <Text style={styles.hint}>This name will show on the leaderboard.</Text>
+            {isCreating ? <><Text style={styles.fieldLabel}>GROUP NAME</Text><TextInput autoCapitalize="words" editable={!isJoining} maxLength={40} onChangeText={setGroupName} placeholder="e.g. Friday dinner" placeholderTextColor="rgba(21,18,31,0.4)" style={styles.nameInput} value={groupName} /><Text style={styles.hint}>Your friends will see this group name.</Text></> : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <View style={[styles.buttonShadow, isDisabled && styles.buttonShadowDisabled]}>
               <Pressable
                 accessibilityRole="button"
                 disabled={isDisabled}
-                onPress={() => onJoin(trimmedName)}
+                onPress={() => onJoin(trimmedName, groupName.trim())}
                 style={({ pressed }) => [styles.joinButton, isDisabled && styles.joinButtonDisabled, pressed && styles.joinButtonPressed]}
               >
-                {isJoining ? <ActivityIndicator color="#F5EFDA" /> : <Text style={[styles.joinText, isDisabled && styles.joinTextDisabled]}>JOIN LOBBY</Text>}
+                {isJoining ? <ActivityIndicator color="#F5EFDA" /> : <Text style={[styles.joinText, isDisabled && styles.joinTextDisabled]}>{isCreating ? 'CREATE LOBBY' : 'JOIN LOBBY'}</Text>}
               </Pressable>
             </View>
           </View>
 
-          <Text style={styles.lobbyCode}>LOBBY CODE: {lobbyCode.toUpperCase()}</Text>
+          {!isCreating ? <Text style={styles.lobbyCode}>LOBBY CODE: {lobbyCode.toUpperCase()}</Text> : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -80,7 +83,7 @@ export function EnterNameScreen({ lobbyCode, isJoining = false, error, onBack, o
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  safeArea: { backgroundColor: '#AAB7E9', flex: 1 },
+  safeArea: { backgroundColor: '#EFEAF9', flex: 1 },
   webCanvas: { backgroundColor: '#AAB7E9' },
   phoneFrame: { alignSelf: 'center', borderColor: '#15121F', borderLeftWidth: 3, borderRightWidth: 3, maxWidth: '100%', minHeight: '100%', width: 390 },
   content: { flexGrow: 1, justifyContent: 'space-between', paddingBottom: 22, paddingHorizontal: 26, paddingTop: 52 },

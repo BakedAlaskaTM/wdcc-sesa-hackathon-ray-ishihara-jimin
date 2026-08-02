@@ -61,7 +61,7 @@ function MemberScore({ member }: { member: GroupMember }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#AAB7E9' },
+  safeArea: { flex: 1, backgroundColor: '#EFEAF9' },
   topBar: { minHeight: 72, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#AAB7E9', borderBottomWidth: 2, borderBottomColor: '#15121F', flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'space-between' },
   backButton: { flexDirection: 'row', alignItems: 'center', minHeight: 44, flexShrink: 0 },
   pressed: { opacity: 0.55 },

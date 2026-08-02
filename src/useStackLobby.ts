@@ -4,7 +4,7 @@ import { io, type Socket } from 'socket.io-client';
 export type StackPlayer = { userId: string; displayName: string; isReadyOnStack: boolean; billPercent: number };
 export type FinalBillPlayer = Pick<StackPlayer, 'userId' | 'displayName' | 'billPercent'>;
 export type TimelineRange = { startedAt: number; endedAt: number };
-type RoomState = { roomCode: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean; sessionEnded: boolean; finalPlayers: FinalBillPlayer[] | null; finalActivityTimeline: number[] | null; finalTimelineRange: TimelineRange | null };
+type RoomState = { roomCode: string; lobbyName: string; hostUserId: string; players: StackPlayer[]; stackVerified: boolean; sessionStarted: boolean; sessionEnded: boolean; finalPlayers: FinalBillPlayer[] | null; finalActivityTimeline: number[] | null; finalTimelineRange: TimelineRange | null };
 type LobbyResponse = { ok: true; error?: never } | { ok: false; error: string };
 type RoomResponse = LobbyResponse & Partial<RoomState>;
 
@@ -15,6 +15,7 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
   const roomCodeRef = useRef<string | null>(initialRoomCode ?? null);
   const displayNameRef = useRef<string | undefined>(initialDisplayName);
   const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [lobbyName, setLobbyName] = useState('');
   const [isHost, setIsHost] = useState(false);
   const [playersArray, setPlayersArray] = useState<StackPlayer[]>([]);
   const [isAllReady, setIsAllReady] = useState(false);
@@ -28,6 +29,7 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
   const applyRoomState = useCallback((state: RoomState) => {
     roomCodeRef.current = state.roomCode;
     setRoomCode(state.roomCode);
+    setLobbyName(state.lobbyName ?? 'Untitled lobby');
     setIsHost(state.hostUserId === activeUserId);
     setPlayersArray(state.players);
     setIsAllReady(state.players.length > 0 && state.players.every((player) => player.isReadyOnStack));
@@ -99,8 +101,8 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     });
   }, [serverUrl]);
 
-  const createRoom = useCallback(async (displayName?: string) => {
-    const response = await emitWithAck<RoomResponse>('CREATE_ROOM', { userId: activeUserId, displayName });
+  const createRoom = useCallback(async (displayName?: string, newLobbyName?: string) => {
+    const response = await emitWithAck<RoomResponse>('CREATE_ROOM', { userId: activeUserId, displayName, lobbyName: newLobbyName });
     if (!response.ok || !response.roomCode) throw new Error(response.error ?? 'Could not create room.');
     applyRoomState(response as RoomState);
     return response.roomCode;
@@ -158,6 +160,7 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     socketRef.current?.emit('LEAVE_ROOM');
     roomCodeRef.current = null;
     setRoomCode(null);
+    setLobbyName('');
     setIsHost(false);
     setPlayersArray([]);
     setIsAllReady(false);
@@ -169,5 +172,5 @@ export function useStackLobby(serverUrl: string, userId?: string, initialRoomCod
     setFinalTimelineRange(null);
   }, []);
 
-  return { activeUserId, roomCode, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, joinRoom, updateDisplayName, startSession, endSession, leaveRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
+  return { activeUserId, roomCode, lobbyName, isHost, playersArray, isAllReady, isStackVerified, isSessionStarted, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, joinRoom, updateDisplayName, startSession, endSession, leaveRoom, updateReadyState, sendShockwaveTimestamp, reportPhoneUse };
 }
