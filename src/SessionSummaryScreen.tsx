@@ -10,6 +10,7 @@ import { getLobbyServerUrl } from './lobbyServerUrl';
 type Props = {
   activityTimeline?: number[];
   lobbyName?: string;
+  onBack: () => void;
   onHome: () => void;
   players: FinalBillPlayer[];
   paymentUserId?: string;
@@ -32,7 +33,7 @@ function makeTimelineBuckets(activityTimeline: number[]) {
   });
 }
 
-export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome, paymentUserId, players, roomCode, timelineLabels }: Props) {
+export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onBack, onHome, paymentUserId, players, roomCode, timelineLabels }: Props) {
   const [costInput, setCostInput] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -52,6 +53,7 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
   const payingPlayer = players.find((player) => player.userId === paymentUserId) ?? players.find((player) => player.displayName === 'You') ?? players[0];
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const isHost = !roomCode || hostUserId === paymentUserId;
+  const hasSharedMealTotal = sharedMealTotalCents !== null;
   const hasPaidPlayer = paidUserIds.length > 0;
   const isCurrentPlayerPaid = Boolean(payingPlayer && (paidUserIds.includes(payingPlayer.userId) || paymentStatus === 'paid'));
   const funStats = roomCode
@@ -70,7 +72,6 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
         setSharedMealTotalCents(summary.mealTotalCents ?? null);
         setPaidUserIds(summary.paidUserIds ?? []);
         setActivitySecondsByUser(summary.activitySecondsByUser ?? {});
-        if (summary.mealTotalCents !== null && summary.mealTotalCents !== undefined) setShowReceipt(true);
       } catch { /* Keep the local summary usable while the lobby server reconnects. */ }
     };
     void loadSummary();
@@ -195,6 +196,7 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
   return (
     <SafeAreaView style={[styles.safeArea, showReceipt ? styles.receiptScreen : styles.finalScreen]}>
       <StatusBar backgroundColor={showReceipt ? "#E7F4EA" : "#EFEAF9"} barStyle="dark-content" />
+      {!showReceipt ? <Pressable accessibilityLabel="Go back to live bill" onPress={onBack} style={styles.backButton}><Text style={styles.backChevron}>‹</Text></Pressable> : null}
       <ScrollView contentContainerStyle={[styles.content, isWeb && styles.phoneFrame]} keyboardShouldPersistTaps="handled">
         <Text style={styles.eyebrow}>{showReceipt ? 'PAYMENT RECEIPT' : "THAT'S A WRAP · YOUR CREW"}</Text>
         <Text style={styles.title}>
@@ -265,7 +267,7 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
             </View>
             <Pressable disabled={enteredCost <= 0} onPress={submitMealTotal} style={[styles.primaryButton, enteredCost <= 0 && styles.disabledButton]}>
               <Text style={[styles.primaryText, enteredCost <= 0 && styles.disabledText]}>{roomCode ? 'SUBMIT MEAL TOTAL' : 'SHOW RECEIPT'}</Text>
-            </Pressable></> : <Text style={styles.subtitle}>Waiting for the lobby creator to submit the meal total.</Text>}
+            </Pressable></> : <><Text style={styles.subtitle}>{hasSharedMealTotal ? 'The meal total is ready.' : 'Waiting for the lobby creator to submit the meal total.'}</Text><Pressable disabled={!hasSharedMealTotal} onPress={() => setShowReceipt(true)} style={[styles.primaryButton, !hasSharedMealTotal && styles.disabledButton]}><Text style={[styles.primaryText, !hasSharedMealTotal && styles.disabledText]}>CONTINUE</Text></Pressable></>}
           </>
         )}
         <View style={styles.timelineCard}>
@@ -275,7 +277,7 @@ export function SessionSummaryScreen({ activityTimeline = [], lobbyName, onHome,
           <View style={styles.timeline}>
             {timelineBuckets.map((activePeople, index) => {
               const intensity = Math.min(1, activePeople / Math.max(1, players.length));
-              const color = activePeople === 0 ? '#7B86C5' : `rgba(155, 29, 48, ${0.25 + intensity * 0.75})`;
+              const color = activePeople === 0 ? '#86CBA3' : intensity >= 0.66 ? '#E76652' : '#F0908B';
               return <View key={index} style={[styles.timelineSegment, { backgroundColor: color }]} />;
             })}
           </View>
@@ -349,6 +351,8 @@ const styles = StyleSheet.create({
   paidButton: { backgroundColor: '#60D9A2' },
   paidButtonText: { color: '#15121F' },
   paymentError: { color: '#761C2C', fontSize: 12, fontWeight: '700', marginTop: -8, textAlign: 'center' },
+  backButton: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#2E2A3A', borderRadius: 18, borderWidth: 2, height: 36, justifyContent: 'center', left: 20, position: 'absolute', top: 18, width: 36, zIndex: 20 },
+  backChevron: { color: '#2E2A3A', fontSize: 27, fontWeight: '800', lineHeight: 29, marginTop: -3 },
   outlineButton: { alignItems: 'center', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, justifyContent: 'center', minHeight: 52 },
   outlineText: { color: '#15121F', fontSize: 13, fontWeight: '800', letterSpacing: 0.4 },
   timelineCard: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, gap: 12, padding: 15 },

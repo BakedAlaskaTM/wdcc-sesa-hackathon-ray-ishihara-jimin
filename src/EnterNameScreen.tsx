@@ -39,7 +39,7 @@ export function EnterNameScreen({ lobbyCode, isCreating = false, isJoining = fal
           showsVerticalScrollIndicator={false}
         >
           <View>
-            <Pressable onPress={onBack}><Text style={styles.back}>← Back</Text></Pressable>
+            <Pressable accessibilityLabel="Go back" onPress={onBack} style={styles.backButton}><Text style={styles.back}>‹</Text></Pressable>
             <Text style={styles.headline}>what&apos;s your</Text>
             <Text style={styles.tagline}>player <Text style={styles.accent}>name</Text>?</Text>
 
@@ -87,7 +87,8 @@ const styles = StyleSheet.create({
   webCanvas: { backgroundColor: '#AAB7E9' },
   phoneFrame: { alignSelf: 'center', borderColor: '#15121F', borderLeftWidth: 3, borderRightWidth: 3, maxWidth: '100%', minHeight: '100%', width: 390 },
   content: { flexGrow: 1, justifyContent: 'space-between', paddingBottom: 22, paddingHorizontal: 26, paddingTop: 52 },
-  back: { color: '#15121F', fontSize: 13, fontWeight: '800', marginBottom: 20 },
+  backButton: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#2E2A3A', borderRadius: 18, borderWidth: 2, height: 36, justifyContent: 'center', marginBottom: 20, width: 36 },
+  back: { color: '#2E2A3A', fontSize: 27, fontWeight: '800', lineHeight: 29, marginTop: -3 },
   headline: { color: '#15121F', fontSize: 26, fontWeight: '800', lineHeight: 28 },
   tagline: { color: '#15121F', fontSize: 26, fontWeight: '700', lineHeight: 28, marginBottom: 24 },
   accent: { color: '#3E4AA0', fontWeight: '800' },

@@ -24,7 +24,7 @@ export function LobbyWaitingScreen({ lobbyCode, lobbyName, onBack, players, curr
       <StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" />
       <ScrollView contentContainerStyle={[styles.content, isWeb && styles.phoneFrame]} showsVerticalScrollIndicator={false}>
         <View>
-          <Pressable onPress={onBack}><Text style={styles.back}>← Back</Text></Pressable>
+          <Pressable accessibilityLabel="Go back" onPress={onBack} style={styles.backButton}><Text style={styles.back}>‹</Text></Pressable>
           <Text numberOfLines={2} style={styles.headline}>{lobbyName || 'wait for the'}</Text>
           <Text style={styles.tagline}><Text style={styles.accent}>stack.</Text></Text>
           <Text style={styles.subtitle}>When everyone's phone is resting, the host can start the shared bill.</Text>
@@ -57,7 +57,8 @@ const styles = StyleSheet.create({
   webCanvas: { backgroundColor: '#EFEAF9' },
   phoneFrame: { alignSelf: 'center', borderColor: '#15121F', borderLeftWidth: 3, borderRightWidth: 3, maxWidth: '100%', minHeight: '100%', width: 390 },
   content: { flexGrow: 1, justifyContent: 'space-between', paddingBottom: 22, paddingHorizontal: 26, paddingTop: 52 },
-  back: { color: '#15121F', fontSize: 13, fontWeight: '800', marginBottom: 20 },
+  backButton: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#2E2A3A', borderRadius: 18, borderWidth: 2, height: 36, justifyContent: 'center', marginBottom: 20, width: 36 },
+  back: { color: '#2E2A3A', fontSize: 27, fontWeight: '800', lineHeight: 29, marginTop: -3 },
   headline: { color: '#15121F', fontSize: 30, fontWeight: '800', lineHeight: 32 },
   tagline: { color: '#15121F', fontSize: 30, fontWeight: '700', lineHeight: 32, marginBottom: 10 },
   accent: { color: '#3E4AA0', fontWeight: '800' },

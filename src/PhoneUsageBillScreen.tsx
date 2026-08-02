@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccelerometerMeasurement } from 'expo-sensors';
+import Slider from '@react-native-community/slider';
 import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { usePhoneUsageBill } from './usePhoneUsageBill';
 import { useStackLobby } from './useStackLobby';
@@ -17,8 +18,12 @@ export function PhoneUsageBillScreen({ displayName, lobbyName: initialLobbyName,
   const [codeInput, setCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
+  const [orientationThreshold, setOrientationThreshold] = useState(0.82);
+  const [shockwaveThreshold, setShockwaveThreshold] = useState(2.2);
+  const [motionDeltaThreshold, setMotionDeltaThreshold] = useState(0.045);
+  const [recentMotionMs, setRecentMotionMs] = useState(2000);
   const { activeUserId, roomCode, lobbyName, isHost, isSessionEnded, finalPlayers, finalActivityTimeline, finalTimelineRange, createRoom, endSession, joinRoom, playersArray, reportPhoneUse } = useStackLobby(LOBBY_SERVER_URL, userId, initialRoomCode, displayName);
-  const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading });
+  const { isUsingPhone, billPercent, activeSeconds } = usePhoneUsageBill({ simulatedReading, orientationThreshold, shockwaveThreshold, motionDeltaThreshold, recentMotionMs });
   const groupPercent = playersArray.find((player) => player.userId === activeUserId)?.billPercent;
   const displayedPercent = roomCode && groupPercent !== undefined ? groupPercent : billPercent;
   const color = isUsingPhone ? '#FF8A65' : '#60D9A2';
@@ -79,14 +84,17 @@ export function PhoneUsageBillScreen({ displayName, lobbyName: initialLobbyName,
           {lobbyError && <Text style={styles.error}>{lobbyError}</Text>}
         </View>
         {isHost && roomCode ? <Pressable disabled={isJoining} onPress={finishSession} style={{ alignItems: 'center', backgroundColor: '#15121F', borderColor: '#15121F', borderRadius: 14, borderWidth: 2.5, minHeight: 54, justifyContent: 'center' }}><Text style={{ color: '#F5EFDA', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 }}>END SESSION</Text></Pressable> : null}
-
-        <View style={[styles.statusCard, { borderColor: color }]}>
-          <View style={[styles.dot, { backgroundColor: color }]} />
-          <View style={styles.statusCopy}>
-            <Text style={[styles.status, { color }]}>{isUsingPhone ? 'ON PHONE' : 'NOT ON PHONE'}</Text>
-            <Text style={styles.statusHint}>{isUsingPhone ? 'Movement or in-hand posture detected' : 'Phone is flat and still'}</Text>
-          </View>
-        </View>
+        {isHost ? <View style={{ backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, gap: 6, padding: 16 }}>
+          <Text style={styles.simulatorTitle}>MOTION CALIBRATION</Text>
+          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 4 }}>Flat orientation: {orientationThreshold.toFixed(2)}g</Text>
+          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={10} minimumTrackTintColor="#3E4AA0" minimumValue={0} onValueChange={setOrientationThreshold} step={0.01} thumbTintColor="#15121F" value={orientationThreshold} />
+          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Shockwave impact: {shockwaveThreshold.toFixed(1)}g</Text>
+          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={50} minimumTrackTintColor="#3E4AA0" minimumValue={0} onValueChange={setShockwaveThreshold} step={0.1} thumbTintColor="#15121F" value={shockwaveThreshold} />
+          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Movement sensitivity: {motionDeltaThreshold.toFixed(3)}g</Text>
+          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={0.2} minimumTrackTintColor="#3E4AA0" minimumValue={0.01} onValueChange={setMotionDeltaThreshold} step={0.005} thumbTintColor="#15121F" value={motionDeltaThreshold} />
+          <Text style={{ color: '#15121F', fontSize: 13, fontWeight: '700', marginTop: 6 }}>Movement hold: {(recentMotionMs / 1000).toFixed(1)}s</Text>
+          <Slider maximumTrackTintColor="rgba(21,18,31,0.18)" maximumValue={5000} minimumTrackTintColor="#3E4AA0" minimumValue={500} onValueChange={setRecentMotionMs} step={100} thumbTintColor="#15121F" value={recentMotionMs} />
+        </View> : null}
 
         {isWeb && <View style={styles.simulator}>
           <Text style={styles.simulatorTitle}>PC MOTION SIMULATOR</Text>
@@ -97,7 +105,6 @@ export function PhoneUsageBillScreen({ displayName, lobbyName: initialLobbyName,
           </View>
         </View>}
       </ScrollView>
-      <View pointerEvents="none" style={styles.floatingNav}><View style={styles.navItem}><Text style={styles.navIcon}>⌂</Text></View><View style={styles.navItem}><Text style={styles.navIcon}>▂</Text></View><View style={styles.navAdd}><Text style={styles.navAddText}>+</Text></View><View style={styles.navItem}><Text style={styles.navIcon}>◌</Text></View><View style={styles.navItem}><Text style={styles.navIcon}>●</Text></View></View>
     </SafeAreaView>
   );
 }
@@ -106,7 +113,6 @@ function sample(x: number, y: number, z: number): AccelerometerMeasurement { ret
 function Button({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.simulatorButton}><Text style={styles.simulatorButtonText}>{label}</Text></Pressable>; }
 
 const styles = StyleSheet.create({
-  floatingNav: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#2E2A3A', borderRadius: 25, borderWidth: 2, bottom: 30, flexDirection: 'row', height: 56, justifyContent: 'space-around', left: 24, paddingHorizontal: 15, position: 'absolute', right: 24, zIndex: 20 },
   restingCard: { alignItems: 'center', backgroundColor: '#FFFDF9', borderColor: '#2E2A3A', borderRadius: 24, borderWidth: 2, padding: 17 }, phoneStack: { height: 64, marginBottom: 6, position: 'relative', width: 94 }, backPhone: { backgroundColor: '#BFE4CD', borderColor: '#2E2A3A', borderRadius: 12, borderWidth: 2, height: 27, left: 20, position: 'absolute', top: 28, transform: [{ rotate: '-8deg' }], width: 59 }, frontPhone: { alignItems: 'center', backgroundColor: '#86CBA3', borderColor: '#2E2A3A', borderRadius: 14, borderWidth: 2, height: 30, justifyContent: 'center', left: 16, position: 'absolute', top: 14, width: 63 }, restEyes: { flexDirection: 'row', gap: 13 }, restEye: { backgroundColor: '#2E2A3A', borderRadius: 2, height: 3, width: 9 }, zed: { color: '#86CBA3', fontSize: 15, fontWeight: '900', position: 'absolute', right: 13, top: 11 }, bigZed: { color: '#86CBA3', fontSize: 19, fontWeight: '900', position: 'absolute', right: 4, top: -2 }, restingTitle: { color: '#2E2A3A', fontSize: 16, fontWeight: '800' }, restingHint: { color: 'rgba(46,42,58,.55)', fontSize: 12, fontWeight: '600', marginTop: 2 }, navItem: { alignItems: 'center', justifyContent: 'center', minWidth: 28 }, navIcon: { color: 'rgba(46,42,58,.48)', fontSize: 18, fontWeight: '800' }, navAdd: { alignItems: 'center', backgroundColor: '#F6C94B', borderColor: '#2E2A3A', borderRadius: 22, borderWidth: 2, height: 44, justifyContent: 'center', marginTop: -21, shadowColor: '#2E2A3A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 1, shadowRadius: 0, width: 44 }, navAddText: { color: '#2E2A3A', fontSize: 24, fontWeight: '800', lineHeight: 27 },
   safeArea: { flex: 1, backgroundColor: '#EFEAF9' }, webCanvas: { backgroundColor: '#E9E3D0' }, screen: { flexGrow: 1, gap: 20, paddingBottom: 112, paddingHorizontal: 24, paddingTop: 38, width: '100%' }, phoneFrame: { alignSelf: 'center', borderColor: '#15121F', borderLeftWidth: 3, borderRightWidth: 3, maxWidth: '100%', minHeight: '100%', width: 390 }, topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }, eyebrow: { color: 'rgba(21,18,31,0.58)', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }, link: { color: '#3E4AA0', fontSize: 14, fontWeight: '800' }, title: { color: '#15121F', fontSize: 30, fontWeight: '800' }, titleAccent: { color: '#3E4AA0' }, subtitle: { color: 'rgba(21,18,31,0.62)', fontSize: 14, fontWeight: '600', lineHeight: 21, marginTop: -10 }, progressCard: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 20, borderWidth: 2.5, gap: 16, padding: 22 }, percent: { fontSize: 58, fontVariant: ['tabular-nums'], fontWeight: '800' }, track: { backgroundColor: 'rgba(21,18,31,0.14)', borderColor: '#15121F', borderRadius: 8, borderWidth: 1, height: 16, overflow: 'hidden' }, fill: { borderRadius: 8, height: '100%' }, statRow: { flexDirection: 'row', justifyContent: 'space-between' }, statLabel: { color: 'rgba(21,18,31,0.62)', fontSize: 14, fontWeight: '600' }, statValue: { color: '#15121F', fontSize: 14, fontVariant: ['tabular-nums'], fontWeight: '800' }, statusCard: { alignItems: 'center', backgroundColor: '#F5EFDA', borderRadius: 16, borderWidth: 2.5, flexDirection: 'row', gap: 12, padding: 17 }, dot: { borderColor: '#15121F', borderRadius: 7, borderWidth: 1, height: 14, width: 14 }, statusCopy: { flex: 1, gap: 3 }, status: { fontSize: 15, fontWeight: '800', letterSpacing: 0.7 }, statusHint: { color: 'rgba(21,18,31,0.62)', fontSize: 13 }, groupCard: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 16, borderWidth: 2.5, gap: 10, padding: 16 }, groupCode: { color: '#15121F', fontSize: 20, fontWeight: '800', letterSpacing: 1 }, groupHint: { color: 'rgba(21,18,31,0.62)', fontSize: 13 }, memberList: { borderTopColor: 'rgba(21,18,31,0.2)', borderTopWidth: 1.5, gap: 7, marginTop: 4, paddingTop: 10 }, memberRow: { flexDirection: 'row', justifyContent: 'space-between' }, memberName: { color: '#15121F', fontSize: 13, fontWeight: '700' }, memberShare: { color: '#15121F', fontSize: 13, fontVariant: ['tabular-nums'], fontWeight: '800' }, codeRow: { flexDirection: 'row', gap: 10 }, codeInput: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 12, borderWidth: 2.5, color: '#15121F', flex: 1, minWidth: 0, fontSize: 20, fontWeight: '800', letterSpacing: 6, paddingHorizontal: 12, paddingVertical: 10, textAlign: 'center' }, joinButton: { alignItems: 'center', backgroundColor: '#15121F', borderRadius: 12, justifyContent: 'center', minWidth: 70, paddingHorizontal: 10 }, joinText: { color: '#F5EFDA', fontSize: 14, fontWeight: '800' }, createButton: { alignItems: 'center', paddingVertical: 7 }, createText: { color: '#3E4AA0', fontSize: 14, fontWeight: '800' }, error: { color: '#761C2C', fontSize: 13, fontWeight: '700' }, resetButton: { alignItems: 'center', backgroundColor: '#15121F', borderColor: '#15121F', borderRadius: 14, borderWidth: 2.5, padding: 14 }, resetText: { color: '#F5EFDA', fontSize: 15, fontWeight: '800' }, simulator: { backgroundColor: 'rgba(245,239,218,0.45)', borderColor: '#15121F', borderRadius: 14, borderWidth: 2, gap: 10, padding: 16 }, simulatorTitle: { color: '#15121F', fontSize: 11, fontWeight: '800', letterSpacing: 1.4 }, simulatorHint: { color: 'rgba(21,18,31,0.62)', fontSize: 13 }, simulatorButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, simulatorButton: { backgroundColor: '#F5EFDA', borderColor: '#15121F', borderRadius: 9, borderWidth: 2, paddingHorizontal: 12, paddingVertical: 10 }, simulatorButtonText: { color: '#15121F', fontSize: 13, fontWeight: '800' },
 });

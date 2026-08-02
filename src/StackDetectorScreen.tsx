@@ -36,18 +36,23 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onOpenDemo, onG
   const [simulatedReading, setSimulatedReading] = useState<AccelerometerMeasurement | null>(
     isBrowserSimulator ? sample(0, 0, 0) : null,
   );
-  const { activeUserId, roomCode, lobbyName, isHost, playersArray, isStackVerified, isSessionStarted, createRoom, joinRoom, startSession, leaveRoom, updateReadyState } = useStackLobby(LOBBY_SERVER_URL, userId);
+  const { activeUserId, roomCode, lobbyName, isHost, playersArray, isStackVerified, isSessionStarted, createRoom, joinRoom, startSession, leaveRoom, updateReadyState, sendShockwaveTimestamp } = useStackLobby(LOBBY_SERVER_URL, userId);
   const currentLobbyName = lobbyName || createdLobbyName || 'your crew';
 
-  const { isFaceDown, hasScreenInteraction, recordScreenInteraction, resetDetector } = usePhoneStackDetector({
-    onScreenInteraction: () => setLobbyError('The screen was interacted with.'),
+  const handleShockwave = useCallback((timestamp: number) => {
+    sendShockwaveTimestamp(timestamp).catch((error: Error) => setLobbyError(error.message));
+  }, [sendShockwaveTimestamp]);
+
+  const { isFaceDown, isLifted, lastShockwaveTime, resetDetector } = usePhoneStackDetector({
+    onShockwave: handleShockwave,
+    onPhoneLifted: () => setLobbyError('This phone was lifted from the stack.'),
     faceDownZDirection: 'either',
     simulatedReading,
   });
 
   useEffect(() => {
-    if (roomCode) updateReadyState(isFaceDown && !hasScreenInteraction).catch((error: Error) => setLobbyError(error.message));
-  }, [hasScreenInteraction, isFaceDown, roomCode, updateReadyState]);
+    if (roomCode) updateReadyState(isFaceDown && !isLifted).catch((error: Error) => setLobbyError(error.message));
+  }, [isFaceDown, isLifted, roomCode, updateReadyState]);
 
   useEffect(() => {
     if (isSessionStarted && roomCode) onGameStarted?.(roomCode, playerName, currentLobbyName);
@@ -105,7 +110,15 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onOpenDemo, onG
     setCodeInput('');
     setPendingRoomCode(null);
     setCreatedRoomCode(null);
+    setCreatedLobbyName(null);
+    setIsCreatingLobby(false);
     setIsWaitingRoom(false);
+    setLobbyError(null);
+  };
+  const handleBackToName = () => {
+    if (!activeRoomCode) { handleBackToLanding(); return; }
+    setIsWaitingRoom(false);
+    setPendingRoomCode(activeRoomCode);
     setLobbyError(null);
   };
 
@@ -115,8 +128,8 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onOpenDemo, onG
   // catching up with the server's room state.
   const activeIsHost = isHost || (createdRoomCode !== null && createdRoomCode === roomCode);
 
-  const localStatus = hasScreenInteraction ? 'SCREEN TOUCHED' : isStackVerified ? 'STACK VERIFIED' : isFaceDown ? 'PHONE FACE DOWN' : 'LOBBY ACTIVE';
-  const statusColor = hasScreenInteraction ? '#FF6B6B' : isStackVerified ? '#76E5B1' : isFaceDown ? '#82A7FF' : '#F6C667';
+  const localStatus = isLifted ? 'PHONE LIFTED' : isStackVerified ? 'STACK VERIFIED' : isFaceDown ? 'PHONE FACE DOWN' : 'LOBBY ACTIVE';
+  const statusColor = isLifted ? '#FF6B6B' : isStackVerified ? '#76E5B1' : isFaceDown ? '#82A7FF' : '#F6C667';
 
   if (pendingRoomCode || isCreatingLobby) {
     return <EnterNameScreen error={lobbyError} isCreating={isCreatingLobby} isJoining={isJoining} lobbyCode={pendingRoomCode ?? ''} onBack={handleBackToLanding} onJoin={(name, groupName) => isCreatingLobby ? handleCreateLobby(name, groupName) : handleNameSubmit(name)} />;
@@ -125,17 +138,21 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onOpenDemo, onG
   if (isWaitingRoom) {
     const waitingPlayers = activePlayers.map(({ userId, name, isReadyOnStack }) => ({ userId, name, isReadyOnStack }));
     const liftedPhoneCount = activePlayers.filter((player) => !player.isReadyOnStack).length;
-    if (activeIsHost) return <HostWaitingScreen difficulty={difficulty} error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} liftedPhoneCount={liftedPhoneCount} lobbyCode={activeRoomCode ?? ''} lobbyName={currentLobbyName} onBack={handleBackToLanding} onDifficultyChange={setDifficulty} onStart={handleStartSession} players={waitingPlayers} />;
-    return <LobbyWaitingScreen currentUserId={activeUserId} liftedPhoneCount={liftedPhoneCount} lobbyCode={activeRoomCode ?? ''} lobbyName={currentLobbyName} onBack={handleBackToLanding} players={waitingPlayers} />;
+    if (activeIsHost) return <HostWaitingScreen difficulty={difficulty} error={lobbyError} hostUserId={activeUserId} isStarting={isJoining} liftedPhoneCount={liftedPhoneCount} lobbyCode={activeRoomCode ?? ''} lobbyName={currentLobbyName} onBack={handleBackToName} onDifficultyChange={setDifficulty} onStart={handleStartSession} players={waitingPlayers} />;
+    return <LobbyWaitingScreen currentUserId={activeUserId} liftedPhoneCount={liftedPhoneCount} lobbyCode={activeRoomCode ?? ''} lobbyName={currentLobbyName} onBack={handleBackToName} players={waitingPlayers} />;
   }
 
   if (!activeRoomCode) {
     return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={() => setIsCreatingLobby(true)} onDemo={() => onOpenDemo?.()} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} />;
   }
 
-  return <SafeAreaView onTouchStart={recordScreenInteraction} style={[styles.safeArea, isBrowserSimulator && styles.webCanvas]}><StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" /><ScrollView style={styles.scroll} contentContainerStyle={[styles.container, isBrowserSimulator && styles.phoneFrame]} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+  // The pre-redesign sensor dashboard is intentionally no longer a route.
+  // A room that has not entered the current waiting flow falls back to home.
+  return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={() => setIsCreatingLobby(true)} onDemo={() => onOpenDemo?.()} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} />;
+
+  return <SafeAreaView style={[styles.safeArea, isBrowserSimulator && styles.webCanvas]}><StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" /><ScrollView style={styles.scroll} contentContainerStyle={[styles.container, isBrowserSimulator && styles.phoneFrame]} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
     <View style={styles.titleRow}><View style={styles.titleCopy}><Text style={styles.eyebrow}>STACK LOBBY</Text><Text style={styles.title}>phones, <Text style={styles.titleAccent}>together.</Text></Text></View><View style={styles.navButtons}>{onOpenBill && <Pressable onPress={onOpenBill} style={styles.historyButton}><Text style={styles.historyButtonText}>My bill</Text></Pressable>}{onOpenHistory && <Pressable onPress={onOpenHistory} style={styles.historyButton}><Text style={styles.historyButtonText}>History</Text></Pressable>}</View></View>
-    <View style={styles.statusCard}><View style={[styles.dot, { backgroundColor: statusColor }]} /><View style={styles.statusCopy}><Text style={[styles.status, { color: statusColor }]}>{localStatus}</Text><Text style={styles.statusHint}>Screen interaction detector is active</Text></View><Pressable onPress={resetDetector} hitSlop={10}><Text style={styles.reset}>Reset</Text></Pressable></View>
+    <View style={styles.statusCard}><View style={[styles.dot, { backgroundColor: statusColor }]} /><View style={styles.statusCopy}><Text style={[styles.status, { color: statusColor }]}>{localStatus}</Text><Text style={styles.statusHint}>{lastShockwaveTime !== null ? `Last impact ${new Date(lastShockwaveTime as number).toLocaleTimeString()}` : 'Sensor is active'}</Text></View><Pressable onPress={resetDetector} hitSlop={10}><Text style={styles.reset}>Reset</Text></Pressable></View>
     {!activeRoomCode && <View style={styles.codeCard}><Text style={styles.sectionLabel}>LOBBY CODE</Text><View style={styles.codeRow}><TextInput value={codeInput} onChangeText={(value) => setCodeInput(value.replace(/\D/g, '').slice(0, 4))} editable={!isJoining} keyboardType="number-pad" maxLength={4} placeholder="0000" placeholderTextColor="#63708B" style={styles.codeInput} /><Pressable disabled={isJoining} onPress={handleJoinRoom} style={styles.joinButton}>{isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.joinText}>Join</Text>}</Pressable></View><Pressable disabled={isJoining} onPress={() => setIsCreatingLobby(true)} style={styles.createButton}><Text style={styles.createText}>Create a new lobby</Text></Pressable>{lobbyError && <Text style={styles.error}>{lobbyError}</Text>}</View>}
     {activeRoomCode ? <View style={styles.playersCard}><View style={styles.playersHeader}><View style={styles.roomDetails}><Text style={styles.sectionLabel}>LIVE LOBBY</Text><Text style={styles.roomCode}>{activeRoomCode} {activeIsHost ? '• HOST' : ''}</Text></View><Text style={styles.count}>{activePlayers.length} connected</Text></View><View style={styles.divider} />{activePlayers.map((player) => <View key={player.userId} style={styles.playerRow}><View style={[styles.playerDot, { backgroundColor: '#237050' }]} /><Text numberOfLines={1} style={styles.playerName}>{player.name}</Text><Text style={[styles.playerState, { color: '#237050' }]}>CONNECTED</Text></View>)}</View> : <Text style={styles.emptyState}>Create a lobby or enter a code to join one.</Text>}
     {isBrowserSimulator && <View style={styles.simulator}><Text style={styles.sectionLabel}>PC SENSOR SIMULATOR</Text><Text style={styles.simulatorHint}>Inject G-force samples into the same detector hook.</Text><View style={styles.simulatorButtons}><SimulatorButton label="Place flat" onPress={() => setSimulatedReading(sample(0, 0, -1))} /><SimulatorButton label="Tap / shock" onPress={() => setSimulatedReading(sample(0, 0, -2.6))} /><SimulatorButton label="Lift phone" onPress={() => setSimulatedReading(sample(0, 0.7, -0.5))} /></View></View>}

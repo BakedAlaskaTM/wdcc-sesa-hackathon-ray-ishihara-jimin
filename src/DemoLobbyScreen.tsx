@@ -110,7 +110,7 @@ export function DemoLobbyScreen({ onBack, onStart }: { onBack: () => void; onSta
         {players.length < 4 ? <Pressable onPress={addPlayer} style={styles.secondaryButton}><Text style={styles.secondaryText}>SIMULATE FRIEND JOIN</Text></Pressable> : null}
         <Pressable disabled={stackedCount >= 4} onPress={dropNextPhone} style={[styles.primaryButton, stackedCount >= 4 && styles.disabledButton]}><Text style={[styles.primaryText, stackedCount >= 4 && styles.disabledText]}>{stackedCount >= 4 ? 'STACK COMPLETE' : 'DROP NEXT PHONE ON STACK'}</Text></Pressable>
         {stackedCount > 0 ? <Pressable onPress={onStart} style={styles.startButton}><Text style={styles.startText}>START LIVE BILL DEMO</Text></Pressable> : null}
-        <Pressable onPress={onBack} style={styles.backButton}><Text style={styles.backText}>← BACK</Text></Pressable>
+        <Pressable accessibilityLabel="Go back" onPress={onBack} style={styles.backButton}><Text style={styles.backText}>‹</Text></Pressable>
       </ScrollView>
     </SafeAreaView>
   );
