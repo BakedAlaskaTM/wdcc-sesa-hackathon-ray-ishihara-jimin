@@ -8,8 +8,8 @@ export type MapHistoryItem = { id: string; name: string; lastSession: string; du
 type Coordinate = { latitude: number; longitude: number };
 type MarkerHistoryItem = MapHistoryItem & Coordinate & { markerColor: string; resultLabel: string };
 
-const MAP_2D_STYLE = 'mapbox://styles/bakedalaskatm/cmsaz8sne005a01rda3e5h6nd';
-const MAP_3D_STYLE = 'mapbox://styles/bakedalaskatm/cmsazktg9005b01rd4zu12a64';
+const MAP_2D_STYLE = 'mapbox://styles/bakedalaskatm/cmsb6c622005e01suh5c2023q';
+const MAP_3D_STYLE = 'mapbox://styles/bakedalaskatm/cmsb6gknq005e01rdeu2e9t51';
 const SUCCESS_MARKER_COLOR = '#237050';
 const FAIL_MARKER_COLOR = '#B32638';
 const DEFAULT_MARKER_COLOR = '#15121F';
