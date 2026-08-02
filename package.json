@@ -4,12 +4,14 @@
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
+    "build": "expo export --platform web",
     "start": "expo start --go --tunnel",
     "start:lan": "expo start --go --lan",
     "web": "expo start --web",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "server": "node server.js",
+    "start:server": "node server.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

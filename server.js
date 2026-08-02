@@ -1,20 +1,64 @@
 require('dotenv').config();
 const { createServer } = require('node:http');
+const { readFile, stat } = require('node:fs/promises');
+const path = require('node:path');
 const { Server } = require('socket.io');
 const Stripe = require('stripe');
 
 const PORT = Number(process.env.PORT || 3001);
+const WEB_DIST_DIR = path.join(__dirname, 'dist');
+const API_PATHS = new Set(['/payments/checkout', '/payments/intent', '/payments/status', '/session/summary', '/session/meal-total', '/session/payment-confirm']);
+const CONTENT_TYPES = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.map': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
+  '.woff2': 'font/woff2',
+};
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const merchantAccountId = process.env.STRIPE_MERCHANT_ACCOUNT_ID?.trim();
 const connectedMerchantAccountId = merchantAccountId && !merchantAccountId.includes('replace_me') ? merchantAccountId : undefined;
+
+async function serveWebApp(request, response, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return response.writeHead(405).end();
+  const requestedPath = decodeURIComponent(url.pathname).replace(/^[/\\]+/, '');
+  const filePath = path.resolve(WEB_DIST_DIR, requestedPath || 'index.html');
+  const insideDist = filePath === WEB_DIST_DIR || filePath.startsWith(`${WEB_DIST_DIR}${path.sep}`);
+  let target = insideDist ? filePath : path.join(WEB_DIST_DIR, 'index.html');
+
+  try {
+    if (!(await stat(target)).isFile()) target = path.join(WEB_DIST_DIR, 'index.html');
+  } catch {
+    target = path.join(WEB_DIST_DIR, 'index.html');
+  }
+
+  try {
+    const body = await readFile(target);
+    response.writeHead(200, {
+      'Content-Type': CONTENT_TYPES[path.extname(target).toLowerCase()] || 'application/octet-stream',
+      'Cache-Control': target.endsWith('index.html') ? 'no-cache' : 'public, max-age=31536000, immutable',
+    });
+    return request.method === 'HEAD' ? response.end() : response.end(body);
+  } catch {
+    response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return response.end('Web build is unavailable. Run npm run build before starting the server.');
+  }
+}
+
 const httpServer = createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
-  if (!['/payments/checkout', '/payments/intent', '/payments/status', '/session/summary', '/session/meal-total', '/session/payment-confirm'].includes(url.pathname)) return;
+  if (url.pathname.startsWith('/socket.io/')) return;
+  if (!API_PATHS.has(url.pathname)) return serveWebApp(request, response, url);
 
   response.setHeader('Access-Control-Allow-Origin', '*');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (request.method === 'OPTIONS') return response.writeHead(204).end();
-  if (!stripe) {
+  if (!stripe && !['/session/summary', '/session/meal-total'].includes(url.pathname)) {
     response.writeHead(503, { 'Content-Type': 'application/json' });
     return response.end(JSON.stringify({ error: 'Stripe is not configured. Add STRIPE_SECRET_KEY to .env and restart the server.' }));
   }
@@ -95,8 +139,8 @@ const httpServer = createServer(async (request, response) => {
         quantity: 1,
       }],
       metadata: { roomCode: String(roomCode || 'demo'), payerName: String(payerName || 'Diner') },
-      success_url: process.env.STRIPE_SUCCESS_URL || 'https://example.com/payment-success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: process.env.STRIPE_CANCEL_URL || 'https://example.com/payment-cancelled',
+      success_url: process.env.STRIPE_SUCCESS_URL || `${url.origin}/?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: process.env.STRIPE_CANCEL_URL || url.origin,
     }, connectedMerchantAccountId ? { stripeAccount: connectedMerchantAccountId } : undefined);
 
     response.writeHead(200, { 'Content-Type': 'application/json' });

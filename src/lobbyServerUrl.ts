@@ -4,7 +4,9 @@ import { Platform } from 'react-native';
 export function getLobbyServerUrl() {
   const configuredUrl = process.env.EXPO_PUBLIC_LOBBY_SERVER_URL?.trim();
   if (configuredUrl) return configuredUrl.replace(/\/$/, '');
-  if (Platform.OS === 'web') return 'http://localhost:3001';
+  // In production the Node server also serves the exported web app, so use the
+  // current HTTPS origin for both the API and Socket.IO connection.
+  if (Platform.OS === 'web') return globalThis.location?.origin || 'http://localhost:3001';
 
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
