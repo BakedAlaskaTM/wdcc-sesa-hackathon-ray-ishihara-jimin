@@ -14,6 +14,7 @@ const defaultMembers: GroupMember[] = [
   { id: '3', name: 'Mia Chen', percentage: 21, color: '#F0A35E' },
   { id: '4', name: 'Ray Patel', percentage: 29, color: '#A978E8' },
 ];
+const PLACEHOLDER_MEAL_TOTAL = 72;
 
 export function GroupScoreScreen({ groupName = 'Ray', members = defaultMembers, onBack }: { groupName?: string; members?: GroupMember[]; onBack?: () => void }) {
   return (
@@ -40,6 +41,7 @@ export function GroupScoreScreen({ groupName = 'Ray', members = defaultMembers, 
         <View style={styles.memberList}>
           {members.map((member) => <MemberScore key={member.id} member={member} />)}
         </View>
+        <View style={styles.receipt}><Text style={styles.receiptLabel}>MEAL RECEIPT</Text>{members.map((member) => <View key={member.id} style={styles.receiptRow}><Text style={styles.receiptName}>{member.name}</Text><Text style={styles.receiptAmount}>${(PLACEHOLDER_MEAL_TOTAL * member.percentage / 100).toFixed(2)}</Text></View>)}<View style={styles.receiptTotal}><Text style={styles.receiptName}>TOTAL</Text><Text style={styles.receiptAmount}>${PLACEHOLDER_MEAL_TOTAL.toFixed(2)}</Text></View></View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -80,4 +82,5 @@ const styles = StyleSheet.create({
   percentage: { color: '#15121F', flexShrink: 0, fontSize: 17, fontVariant: ['tabular-nums'], fontWeight: '800' },
   barTrack: { height: 14, width: '100%', overflow: 'hidden', borderRadius: 7, backgroundColor: 'rgba(21,18,31,0.14)', borderColor: '#15121F', borderWidth: 1 },
   barFill: { height: '100%', borderRadius: 7 },
+  receipt: { backgroundColor: '#E7F4EA', borderColor: '#15121F', borderRadius: 18, borderWidth: 2.5, gap: 9, marginTop: 22, padding: 16 }, receiptLabel: { color: '#15121F', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }, receiptRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 5 }, receiptName: { color: '#15121F', fontSize: 14, fontWeight: '700' }, receiptAmount: { color: '#3E4AA0', fontSize: 15, fontVariant: ['tabular-nums'], fontWeight: '800' }, receiptTotal: { borderTopColor: '#15121F', borderTopWidth: 2, flexDirection: 'row', justifyContent: 'space-between', marginTop: 3, paddingTop: 11 },
 });

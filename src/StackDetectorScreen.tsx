@@ -21,7 +21,7 @@ import { getLobbyServerUrl } from './lobbyServerUrl';
 import { CreateLobbyScreen } from './CreateLobbyScreen';
 
 const LOBBY_SERVER_URL = getLobbyServerUrl();
-export function StackDetectorScreen({ onOpenHistory, onOpenBill, onOpenDemo, onGameStarted, userId }: { onOpenHistory?: () => void; onOpenBill?: () => void; onOpenDemo?: () => void; onGameStarted?: (roomCode: string, displayName: string, lobbyName: string) => void; userId?: string }) {
+export function StackDetectorScreen({ onOpenHistory, onOpenMap, onOpenStats, onOpenBill, onOpenDemo, onGameStarted, userId }: { onOpenHistory?: () => void; onOpenMap?: () => void; onOpenStats?: () => void; onOpenBill?: () => void; onOpenDemo?: () => void; onGameStarted?: (roomCode: string, displayName: string, lobbyName: string) => void; userId?: string }) {
   const [codeInput, setCodeInput] = useState('');
   const [pendingRoomCode, setPendingRoomCode] = useState<string | null>(null);
   const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
@@ -143,12 +143,12 @@ export function StackDetectorScreen({ onOpenHistory, onOpenBill, onOpenDemo, onG
   }
 
   if (!activeRoomCode) {
-    return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={() => setIsCreatingLobby(true)} onDemo={() => onOpenDemo?.()} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} />;
+    return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={() => setIsCreatingLobby(true)} onDemo={() => onOpenDemo?.()} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} onOpenMap={onOpenMap} onOpenStats={onOpenStats} />;
   }
 
   // The pre-redesign sensor dashboard is intentionally no longer a route.
   // A room that has not entered the current waiting flow falls back to home.
-  return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={() => setIsCreatingLobby(true)} onDemo={() => onOpenDemo?.()} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} />;
+  return <CreateLobbyScreen code={codeInput} error={lobbyError} isLoading={isJoining} onChangeCode={setCodeInput} onCreate={() => setIsCreatingLobby(true)} onDemo={() => onOpenDemo?.()} onJoin={handleJoinRoom} onOpenHistory={onOpenHistory} onOpenMap={onOpenMap} onOpenStats={onOpenStats} />;
 
   return <SafeAreaView style={[styles.safeArea, isBrowserSimulator && styles.webCanvas]}><StatusBar barStyle="dark-content" backgroundColor="#AAB7E9" /><ScrollView style={styles.scroll} contentContainerStyle={[styles.container, isBrowserSimulator && styles.phoneFrame]} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
     <View style={styles.titleRow}><View style={styles.titleCopy}><Text style={styles.eyebrow}>STACK LOBBY</Text><Text style={styles.title}>phones, <Text style={styles.titleAccent}>together.</Text></Text></View><View style={styles.navButtons}>{onOpenBill && <Pressable onPress={onOpenBill} style={styles.historyButton}><Text style={styles.historyButtonText}>My bill</Text></Pressable>}{onOpenHistory && <Pressable onPress={onOpenHistory} style={styles.historyButton}><Text style={styles.historyButtonText}>History</Text></Pressable>}</View></View>
