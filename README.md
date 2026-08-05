@@ -1,6 +1,7 @@
-# Ray Group Score
-
-A basic Expo/React Native screen showing four members and their phone-use score shares.
+# Friend Time
+## 2026 WDCC x SESA Hackathon 2nd Place
+An app built to address the hackathon theme of "cognitive incline".
+The purpose is to discourage phone use during meals with friends, by increasing proportion of bill paid based on phone usage.
 
 ## Run locally
 
