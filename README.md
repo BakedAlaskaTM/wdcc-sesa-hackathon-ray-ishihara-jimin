@@ -16,8 +16,6 @@ launch page then opens the project in Expo Go. If the tunnel is unavailable and
 both devices are on the same non-guest Wi-Fi network, use `npm run start:lan`
 instead.
 
-Edit the `members` array in `src/GroupScoreScreen.tsx` to change the displayed names and percentages. The bars update from the same percentage values.
-
 ## Run on iPhone
 
 On macOS with Xcode installed, run:
